@@ -8,7 +8,7 @@
 - [zenskill-gzh-archive 的实测记录](https://github.com/renzheng0415/zenskill-gzh-archive/blob/main/references/platform-change.md)（2026-09-29）：`searchbiz` 与单篇正文正常，`appmsgpublish` 对所有目标号第一页即 200013；
 - 本项目在 VPS 上两次请求“北理就业”列表（2026-11-09 23:07、23:41），均为 200013，间隔超过 30 分钟。
 
-公众号后台登录仍然有用：`searchbiz` 可把名称解析成 fakeid（`bitfeed/discover.py`），且访问后台首页会重新下发登录 Cookie、有效期顺延 4 天（2026-11-10 实测 `slave_sid` 等 7 项从 11-13 15:00 顺延到 11-13 17:07 UTC），`bitfeed-keepalive.timer` 据此保持登录。
+公众号后台登录仍然有用：`searchbiz` 可把名称解析成 fakeid（`bitfeed/discover.py`），且访问后台首页会重新下发登录 Cookie、有效期顺延 4 天（2026-11-10 实测 `slave_sid` 等 7 项从 11-13 15:00 顺延到 11-13 17:07 UTC）。`bitfeed-keepalive.timer` 每 30 分钟同时做两件事：微信读书 `GET /web/shelf/sync`（仅在 `-2012`/`-2010` 时才 `POST /web/login/renewal`），以及公众号后台首页续期。失效时登录维护页自动出码，飞书运维提醒带上该页链接。
 
 **文章改由微信读书网页版获取。** 依据 we-mp-rss 固定提交 [`9fd4edb`](https://github.com/rachelos/we-mp-rss/tree/9fd4edb2a9311bffa571db050f53f415705db294) 的 `driver/weread_qr.py`、`core/wx/model/weread_mp.py` 和 `docs/weread-mp.md`，并在 VPS 上实测：
 

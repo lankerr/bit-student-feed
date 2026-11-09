@@ -51,7 +51,7 @@ def main():
     sync.add_argument("--bodies",default=2,type=int)
     sync.add_argument("--follows",default=2,type=int)
     sub.add_parser("weread-login",help="server-side WeRead QR login")
-    sub.add_parser("session-keepalive",help="extend the public-platform login")
+    sub.add_parser("session-keepalive",help="extend WeRead and public-platform logins")
     resolve=sub.add_parser("wechat-resolve",help="resolve official accounts via public-platform search")
     resolve.add_argument("--limit",default=40,type=int)
     sub.add_parser("alerts",help="send login/collection alerts to Feishu")
@@ -65,10 +65,12 @@ def main():
         from .weread_auth import login
         return 0 if login(WEREAD_DIR) else 1
     if args.command=="session-keepalive":
-        from .mp_session import keepalive
-        result=keepalive(WECHAT_DIR)
+        from .mp_session import keepalive as mp_keepalive
+        from .subscribe import ping_session
+        result={"mp":mp_keepalive(WECHAT_DIR),"weread":ping_session(WEREAD_DIR)}
         print(json.dumps(result,ensure_ascii=False))
-        return 0 if result.get("state")=="ok" else 1
+        ok=lambda s:s.get("state") in ("ok","busy","cooldown","daily_cap")
+        return 0 if ok(result["mp"]) and ok(result["weread"]) else 1
     if args.command=="wechat-resolve":
         from .discover import resolve as run_resolve
         print(json.dumps(run_resolve(Path(__file__).parent.parent/"config"/"wechat-discovery.json",WECHAT_DIR,args.limit),ensure_ascii=False))

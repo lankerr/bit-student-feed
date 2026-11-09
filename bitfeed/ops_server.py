@@ -139,20 +139,23 @@ h2{font-size:17px;margin:0 0 8px}dl{display:grid;grid-template-columns:8em 1fr;g
 button{font:inherit;padding:7px 16px;border:0;border-radius:6px;background:#3370ff;color:#fff;cursor:pointer}button:disabled{background:#a6bdf7}
 .qr{margin-top:12px;text-align:center}.qr img{width:240px;height:240px;image-rendering:pixelated}.note{color:#646a73;font-size:13px}
 .ok{color:#1f8f4e}.bad{color:#d14343}</style></head><body><main>
-<h1>登录维护</h1><p class="sub">服务器保存的两个登录。平时自动续期；失效后在这里扫码恢复，不需要另外的电脑。</p>
-<section><h2>微信读书（订阅公众号文章）</h2><dl id="weread"></dl><button data-kind="weread">扫码登录微信读书</button><div class="qr" id="qr-weread"></div></section>
-<section><h2>公众号后台（搜号与核验）</h2><dl id="mp"></dl><button data-kind="mp">扫码登录公众号后台</button><div class="qr" id="qr-mp"></div>
-<p class="note">需要用对该公众号有管理权限的微信扫码。</p></section>
+<h1>登录维护</h1><p class="sub">两个登录都保存在这台服务器上，每 30 分钟自动续期。失效时打开本页会自动出码，用微信扫一下即可，不必在电脑上再装一套登录。</p>
+<section><h2>微信读书（订阅公众号文章）</h2><p class="note">登录微信读书网页版。服务器用它订阅各学院公众号的最新文章，平时只做续期，不需要反复扫码。</p>
+<dl id="weread"></dl><button data-kind="weread">扫码登录微信读书</button><div class="qr" id="qr-weread"></div></section>
+<section><h2>公众号后台 · 格拉摩根的指挥官</h2><p class="note">登录自己的公众号「格拉摩根的指挥官」。只用来搜索、核验学校官方号，不发文章、不读别人后台。</p>
+<dl id="mp"></dl><button data-kind="mp">扫码登录格拉摩根的指挥官</button><div class="qr" id="qr-mp"></div>
+<p class="note">请用对该公众号有管理员权限的微信扫码。</p></section>
 <section><h2>添加订阅的公众号</h2><p class="note">在微信里打开该号任意一篇文章，复制链接粘贴到这里。</p>
 <input id="link" type="url" placeholder="https://mp.weixin.qq.com/s/..." style="width:100%;padding:7px;font:inherit;box-sizing:border-box;margin-bottom:8px">
 <button id="add">添加</button> <span id="added" class="note"></span></section>
 <p class="note">手机上打开本页时：截图二维码，再在微信“扫一扫”里从相册选图即可。</p></main><script>
-const base=location.pathname.replace(/\\/?$/,'/');const names={ok:'正常',authorized:'已登录',unknown:'未检查',auth_missing:'未登录',auth_expired:'已失效',ready:'请扫码',scanned:'已扫码，请在手机确认',expired:'二维码已过期',starting:'正在获取二维码',qr_expired_regenerating:'二维码已刷新',failed:'失败',verification_failed:'登录未通过校验',no_platform_account:'该微信没有可登录的公众号'};
+const base=location.pathname.replace(/\\/?$/,'/');const names={ok:'正常',authorized:'已登录',unknown:'未检查',auth_missing:'未登录',auth_expired:'已失效',ready:'请扫码',scanned:'已扫码，请在手机确认',expired:'二维码已过期',starting:'正在获取二维码',qr_expired_regenerating:'二维码已刷新',failed:'失败',verification_failed:'登录未通过校验',no_platform_account:'该微信没有可登录的公众号',busy:'采集中，稍后自动续',cooldown:'限流暂停，稍后自动续',daily_cap:'今日额度用完'};
 function row(dl,k,v){const t=document.createElement('dt');t.textContent=k;const d=document.createElement('dd');d.textContent=v??'—';d.style.margin=0;dl.append(t,d)}
 async function refresh(){const s=await (await fetch(base+'status.json',{cache:'no-store'})).json();
  const w=document.getElementById('weread');w.replaceChildren();row(w,'会话',names[s.weread.session]||s.weread.session);row(w,'最近检查',s.weread.checked_at);row(w,'订阅',s.weread.healthy+' / '+s.weread.accounts+' 个号正常');if(s.weread.cooldown_until)row(w,'限流暂停至',s.weread.cooldown_until);
  const m=document.getElementById('mp');m.replaceChildren();row(m,'会话',names[s.mp.session]||s.mp.session);row(m,'最近续期',s.mp.checked_at);row(m,'有效期至',s.mp.expires_at);
- for(const kind of ['weread','mp']){const box=document.getElementById('qr-'+kind);const st=s[kind].login;
+ for(const kind of ['weread','mp']){const box=document.getElementById('qr-'+kind);const st=s[kind].login;const sess=s[kind].session;
+  if(['auth_missing','auth_expired'].includes(sess)&&!s[kind].login_running&&!box.dataset.autostarted){box.dataset.autostarted=1;box.dataset.started=1;fetch(base+'login/'+kind,{method:'POST'});}
   if(s[kind].login_running&&['ready','qr_expired_regenerating','scanned','starting'].includes(st)){box.innerHTML='<img alt="登录二维码" src="'+base+'qr/'+kind+'.png?'+Date.now()+'"><div>'+(names[st]||st)+'</div>'}
   else if(st&&box.dataset.started){box.innerHTML='<div class="'+(st==='authorized'?'ok':'bad')+'">'+(names[st]||st)+'</div>'}}}
 document.querySelectorAll('button[data-kind]').forEach(b=>b.onclick=async()=>{b.disabled=true;document.getElementById('qr-'+b.dataset.kind).dataset.started=1;

@@ -61,19 +61,23 @@ class OpsServerTest(unittest.TestCase):
         status, page = self.get("/ops/" + TOKEN + "/")
         self.assertEqual(status, 200)
         self.assertIn("扫码登录微信读书".encode(), page)
+        self.assertIn("格拉摩根的指挥官".encode(), page)
+        self.assertIn("每 30 分钟自动续期".encode(), page)
 
     def test_add_account_from_article_link_once(self):
         from bitfeed import accounts
-        page = {"biz": "MzI0MzQwMzc2Nw==", "nickname": "北京理工大学机械与车辆学院", "body": "", "published_at": None,
+        page = {"biz": "OTk5OTk5OTk5OQ==", "nickname": "测试学院官方号", "body": "", "published_at": None,
                 "title": "t", "canonical": ""}
         with mock.patch("bitfeed.article_page.fetch", return_value=page):
             self.assertEqual(ops_server.add_account("https://mp.weixin.qq.com/s/abcdefgh12"),
-                             (200, {"added": "北京理工大学机械与车辆学院"}))
+                             (200, {"added": "测试学院官方号"}))
             self.assertEqual(ops_server.add_account("https://mp.weixin.qq.com/s/abcdefgh12")[1],
-                             {"exists": "北京理工大学机械与车辆学院"})
+                             {"exists": "测试学院官方号"})
         self.assertEqual(ops_server.add_account("https://example.com/x")[0], 400)
-        merged = accounts.load(extra=Path(self.tmp.name) / "weread" / "extra-accounts.json")
-        self.assertIn("MP_WXS_3243403767", {a["book_id"] for a in merged})
+        extra = Path(self.tmp.name) / "weread" / "extra-accounts.json"
+        merged = accounts.load(extra=extra)
+        self.assertIn("MP_WXS_9999999999", {a["book_id"] for a in merged})
+        self.assertEqual(json.loads(extra.read_text(encoding="utf-8"))["accounts"][0]["fakeid"], "OTk5OTk5OTk5OQ==")
 
     def test_login_start_is_single_flight(self):
         fake = mock.Mock()

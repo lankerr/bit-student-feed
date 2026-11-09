@@ -1,5 +1,5 @@
 [Unit]
-Description=BIT feed: keep the public-platform login alive, then check alerts
+Description=BIT feed: keep WeRead and public-platform logins alive, then check alerts
 After=network-online.target
 Wants=network-online.target
 
@@ -18,7 +18,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectHome=true
 ProtectSystem=strict
-ReadWritePaths=/var/lib/bitfeed-live /var/lib/bitfeed-wechat
+ReadWritePaths=/var/lib/bitfeed-live /var/lib/bitfeed-wechat /var/lib/bitfeed-weread
 UMask=0077
 MemoryMax=128M
 TimeoutStartSec=300

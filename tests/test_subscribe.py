@@ -7,7 +7,7 @@ from unittest import mock
 
 from bitfeed import alerts, digest
 from bitfeed.store import Store
-from bitfeed.subscribe import Worker
+from bitfeed.subscribe import Worker, ping_session
 from test_weread import HTTP, Response
 
 ACCOUNTS = {"accounts": [
@@ -109,6 +109,33 @@ class WorkerTest(unittest.TestCase):
         audit = json.loads(self.store.metadata()["weread_audit"])
         self.assertEqual({a["scope"] for a in audit}, {"weread_latest"})
 
+    def test_ping_session_renews_only_after_expired_key(self):
+        http = HTTP({"/web/shelf/sync": Response({"books": [], "synckey": 1})})
+        status = ping_session(self.weread, http=http, clock=self.clock)
+        self.assertEqual(status["state"], "ok")
+        self.assertEqual([c[1] for c in http.calls], ["/web/shelf/sync"])
+        self.assertEqual(json.loads((self.weread / "scheduler.json").read_text(encoding="utf-8"))["session"]["state"], "ok")
+
+        http = HTTP({"/web/shelf/sync": [Response({"errCode": -2012}), Response({"books": [], "synckey": 1})],
+                     "/web/login/renewal": Response({"succ": 1}, cookies=[("wr_skey", "fresh")])})
+        status = ping_session(self.weread, http=http, clock=self.clock)
+        self.assertEqual(status["state"], "ok")
+        self.assertEqual([c[1] for c in http.calls], ["/web/shelf/sync", "/web/login/renewal", "/web/shelf/sync"])
+        self.assertEqual(json.loads((self.weread / "session.json").read_text(encoding="utf-8"))["cookies"]["wr_skey"], "fresh")
+
+    def test_ping_session_skips_during_cooldown(self):
+        (self.weread / "scheduler.json").write_text(json.dumps({
+            "session": {"state": "ok"}, "limits": {"cooldown_until": self.clock() + 3600}}), encoding="utf-8")
+        http = HTTP({"/web/shelf/sync": Response({"books": [], "synckey": 1})})
+        self.assertEqual(ping_session(self.weread, http=http, clock=self.clock)["state"], "cooldown")
+        self.assertEqual(http.calls, [])
+
+    def test_ping_session_missing_login_is_auth_missing(self):
+        (self.weread / "session.json").unlink()
+        status = ping_session(self.weread, clock=self.clock)
+        self.assertEqual(status["state"], "auth_missing")
+        self.assertEqual(json.loads((self.weread / "scheduler.json").read_text(encoding="utf-8"))["session"]["state"], "auth_missing")
+
 
 class DigestAlertTest(unittest.TestCase):
     def setUp(self):
@@ -165,6 +192,16 @@ class DigestAlertTest(unittest.TestCase):
         (wechat / "keepalive.json").write_text(json.dumps({"state": "ok", "expires_at": time.time() + 4 * 86400}))
         alerts.run(self.store, weread, wechat, send=send)
         self.assertEqual(sent[-1], "北理消息站 · 已恢复")
+
+
+class RegistryTest(unittest.TestCase):
+    def test_seed_accounts_have_unique_fakeids(self):
+        from bitfeed import accounts
+        rows = accounts.load(include_disabled=True)
+        fakeids = [a["fakeid"] for a in rows]
+        self.assertEqual(len(fakeids), len(set(fakeids)))
+        self.assertGreaterEqual(len(rows), 50)
+        self.assertIn("北理工自动化学院", {a["name"] for a in rows})
 
 
 if __name__ == "__main__":

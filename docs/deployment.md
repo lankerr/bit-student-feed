@@ -26,7 +26,7 @@ journalctl -u bitfeed-wechat.service -n 20 --no-pager
 | --- | --- |
 | `bitfeed-web.service` | 0.0.0.0:18780：`/health`、`/site-data.json`、`/feed.json`、`/test-receipts`、`/ops/<口令>/` |
 | `bitfeed-wechat.timer` | 每 5 分钟一次微信读书订阅（`python -m bitfeed wechat-sync`） |
-| `bitfeed-keepalive.timer` | 每 30 分钟：公众号后台续期（`session-keepalive`）后检查提醒（`alerts`） |
+| `bitfeed-keepalive.timer` | 每 30 分钟：微信读书 `shelf/sync` 续期 + 公众号后台首页续期，然后检查提醒 |
 | `bitfeed-refresh.timer` | 每 2 小时及周四、周日 11:40：分拣与导出（`refresh`，每次最多 3 批） |
 | `bitfeed-daily.timer` | 每天 07:50：就业网与官网采集、分拣、导出（`server-daily`） |
 | `bitfeed-digest.timer` | 周四、周日 12:00：飞书汇总（`feishu-digest`） |
@@ -91,8 +91,8 @@ BITFEED_DIGEST_MODE=production
 | 现象 | 检查 |
 | --- | --- |
 | 公众号长时间没有新文章 | 登录维护页的会话状态；`scheduler.json` 中的 `cooldown_until`、各号 `state`/`error` |
-| 微信读书显示已失效 | 打开登录维护页重新扫码；续期失败的原因见 `journalctl -u bitfeed-wechat` |
-| 公众号后台显示即将过期 | `keepalive.json` 的 `expires_at` 应在每次续期后顺延 4 天；不顺延时重新扫码 |
+| 微信读书显示已失效 | 打开登录维护页（会自动出码）用微信扫码；平时由 `bitfeed-keepalive` 续期，不必反复扫 |
+| 公众号后台显示即将过期 | `keepalive.json` 的 `expires_at` 应在每次续期后顺延 4 天；不顺延时用「格拉摩根的指挥官」管理员微信在维护页扫码 |
 | 新消息仍待分拣 | `refresh` 的输出、学校 API 预算（每日 20 次）、`model_retry_after` |
 | 网页没更新 | GitHub Actions 的 Daily public feed 运行记录；`curl http://127.0.0.1:18780/site-data.json` |
 | 飞书没收到汇总 | `journalctl -u bitfeed-digest`；`deliveries` 表中的状态 |

@@ -47,7 +47,7 @@ flowchart LR
 | 定时任务（北京时间） | 做什么 |
 | --- | --- |
 | `bitfeed-wechat.timer` 每 5 分钟 | 微信读书订阅：每次最多 3 个请求，间隔 50～80 秒；限流后按 0.5→1→2→4→8→12 小时退避；再抓 1～2 篇公开文章正文 |
-| `bitfeed-keepalive.timer` 每 30 分钟 | 公众号后台续期，检查并发送运维提醒 |
+| `bitfeed-keepalive.timer` 每 30 分钟 | 微信读书与「格拉摩根的指挥官」后台自动续期，失效则飞书提醒并在登录维护页自动出码 |
 | `bitfeed-refresh.timer` 每 2 小时、周四周日 11:40 | 学校模型分拣新消息，重新导出网页数据 |
 | `bitfeed-daily.timer` 每天 07:50 | 采集就业网和官网，分拣并导出 |
 | `bitfeed-digest.timer` 周四、周日 12:00 | 飞书汇总 |

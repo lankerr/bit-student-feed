@@ -285,3 +285,50 @@ class Worker:
                    "last_call_at": iso(limits.get("last_call_at"))}
         self.store.set_meta("weread_audit", json.dumps(audits, ensure_ascii=False))
         self.store.set_meta("weread_status", json.dumps(summary, ensure_ascii=False))
+
+
+def ping_session(root, http=None, clock=time.time):
+    """Keep the WeRead login warm: shelf/sync, and renew only after -2012/-2010.
+
+    Skips when another subscription run holds the lock, when WeRead is in
+    cooldown, or when the daily call budget is already spent.
+    """
+    root = Path(root)
+    status = {"checked_at": int(clock())}
+    try:
+        with exclusive(root / ".scheduler.lock"):
+            try:
+                state = json.loads((root / "scheduler.json").read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                state = {}
+            state.setdefault("session", {})
+            state.setdefault("limits", {})
+            limits = state["limits"]
+            if float(limits.get("cooldown_until", 0)) > clock():
+                status.update(state="cooldown")
+                return status
+            day = today()
+            if int((limits.get("calls") or {}).get(day, 0)) >= DAILY_CALLS:
+                status.update(state="daily_cap")
+                return status
+            session = None
+            try:
+                session = WeReadSession.load(root / "session.json", http=http)
+                session.verify(renew_on_failure=True)
+                status.update(state="ok")
+                counter = limits.setdefault("calls", {})
+                counter[day] = counter.get(day, 0) + 1
+                limits["last_call_at"] = clock()
+            except WeReadError as exc:
+                status.update(state=exc.state, error=exc.code)
+            finally:
+                if session is not None and http is None:
+                    session.close()
+            session_state = {"state": status["state"], "checked_at": status["checked_at"]}
+            if status.get("error"):
+                session_state["error"] = status["error"]
+            state["session"] = session_state
+            private_json(root / "scheduler.json", state)
+    except Busy:
+        status.update(state="busy")
+    return status
