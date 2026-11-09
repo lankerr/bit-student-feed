@@ -113,16 +113,25 @@ def validate_classification(raw, article):
     if isinstance(confidence, bool) or not isinstance(confidence, (int, float)) or not 0 <= confidence <= 1:
         raise ValueError("confidence must be 0..1")
     source = "\n".join([article["title"], article["digest"], article["body"]])
-    for field in ("summary","next_step","reason"):
-        statement=str(raw.get(field) or "")
-        contacts=re.findall(r"https?://[^\s<>]+|[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}|(?<!\d)1[3-9]\d{9}(?!\d)|(?<!\d)0\d{2,3}[-－ ]?\d{7,8}(?!\d)",statement)
-        if any(contact not in source and contact != article["url"] for contact in contacts):
-            raise ValueError("model added a contact/link absent from the source")
+    invented_contact = False
+    for field in ("summary", "next_step", "reason"):
+        statement = str(raw.get(field) or "")
+        contacts = re.findall(
+            r"https?://[^\s<>]+|[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}|(?<!\d)1[3-9]\d{9}(?!\d)|(?<!\d)0\d{2,3}[-－ ]?\d{7,8}(?!\d)",
+            statement)
+        for contact in contacts:
+            if contact not in source and contact != article["url"]:
+                statement = statement.replace(contact, "")
+                invented_contact = True
+        raw[field] = re.sub(r"\s{2,}", " ", statement).strip(" ，,;；")
     deadline = _verified_day(raw.get("deadline"), raw.get("deadline_evidence"), source)
     event_date = _verified_day(raw.get("event_date"), raw.get("event_date_evidence"), source)
     state = raw["event_status"]
     today = datetime.now(TZ).date().isoformat()
-    if RECAP.search(article["title"]):
+    if invented_contact:
+        # Keep the rest of the batch; never recommend a model-invented phone/link.
+        state, score, confidence = "needs_verification", min(score, 40), min(confidence, 0.5)
+    elif RECAP.search(article["title"]):
         state, score = "recap", min(score, 15)
     elif (deadline and deadline < today) or (event_date and event_date < today):
         state, score = "expired", min(score, 10)

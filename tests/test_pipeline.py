@@ -194,7 +194,10 @@ class PipelineTest(unittest.TestCase):
 
     def test_hallucinated_contact_does_not_enter_recommendation(self):
         a=normalize_article(source())
-        with self.assertRaises(ValueError):validate_classification(answer(a,next_step='请拨打010-12345678报名。'),a)
+        c=validate_classification(answer(a,next_step='请拨打010-12345678报名。'),a)
+        self.assertEqual(c["event_status"],"needs_verification")
+        self.assertFalse(c["verified_activity"])
+        self.assertNotIn("010-12345678",c["next_step"])
 
     def test_model_queue_prioritizes_upcoming_source_evidence_over_undated_archive(self):
         old=source(url='https://cs.bit.edu.cn/old.htm',publication_status='unknown',
