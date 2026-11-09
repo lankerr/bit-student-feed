@@ -46,7 +46,7 @@ def conditions(weread_root, wechat_root, now=None):
     keep = _read(Path(wechat_root) / "keepalive.json")
     if keep.get("state") in ("auth_missing", "auth_expired"):
         found["mp_login"] = ("公众号后台登录已失效",
-                             f"用于搜索和核验公众号的后台登录（格拉摩根的指挥官）已失效，文章订阅不受影响。重新扫码：{scan}。")
+                             f"用于搜索和核验公众号的后台登录已失效，文章订阅不受影响。重新扫码：{scan}。")
     elif keep.get("expires_at") and float(keep["expires_at"]) - now < 36 * 3600:
         found["mp_expiring"] = ("公众号后台登录即将过期",
                                 f"自动续期未能延长有效期，将于 {_when(keep['expires_at'])} 过期。可提前扫码：{scan}。")

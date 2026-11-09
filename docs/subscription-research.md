@@ -1,5 +1,35 @@
 # 公众号订阅调查与覆盖边界
 
+## 当前路线（2026-11-10）
+
+**公众号后台的跨号文章列表已关闭。** 2026-07-30 起，`/cgi-bin/appmsgpublish`（以及 `appmsg`）对第三方公众号第一页就返回 `{"base_resp":{"ret":200013,"err_msg":"freq control"}}`，等待和重试都不能恢复：
+
+- wechat-article-exporter 维护者在 [#200](https://github.com/wechat-article/wechat-article-exporter/issues/200) 宣布上游核心接口被微信关闭并停止维护，[#199](https://github.com/wechat-article/wechat-article-exporter/issues/199) 是同日的大量 200013 报告；
+- [zenskill-gzh-archive 的实测记录](https://github.com/renzheng0415/zenskill-gzh-archive/blob/main/references/platform-change.md)（2026-09-29）：`searchbiz` 与单篇正文正常，`appmsgpublish` 对所有目标号第一页即 200013；
+- 本项目在 VPS 上两次请求“北理就业”列表（2026-11-09 23:07、23:41），均为 200013，间隔超过 30 分钟。
+
+公众号后台登录仍然有用：`searchbiz` 可把名称解析成 fakeid（`bitfeed/discover.py`），且访问后台首页会重新下发登录 Cookie、有效期顺延 4 天（2026-11-10 实测 `slave_sid` 等 7 项从 11-13 15:00 顺延到 11-13 17:07 UTC），`bitfeed-keepalive.timer` 据此保持登录。
+
+**文章改由微信读书网页版获取。** 依据 we-mp-rss 固定提交 [`9fd4edb`](https://github.com/rachelos/we-mp-rss/tree/9fd4edb2a9311bffa571db050f53f415705db294) 的 `driver/weread_qr.py`、`core/wx/model/weread_mp.py` 和 `docs/weread-mp.md`，并在 VPS 上实测：
+
+| 步骤 | 接口 | 实测 |
+| --- | --- | --- |
+| 扫码登录 | `GET /api/auth/getLoginUid` → 二维码内容 `https://weread.qq.com/web/confirm?uid=` → 长轮询 `GET /api/auth/getLoginInfo` | 成功，得到 `wr_vid`/`wr_skey`/`wr_rt`/`wr_ql` |
+| 会话检查 | `GET /web/shelf/sync?userVid=&synckey=0` | 正常 |
+| 关注 | `POST /web/shelf/add {"bookIds":["MP_WXS_…"]}` | `succ=1` |
+| 完整列表 | `GET /web/mp/articles?bookId=&offset=` | 恒为 `-2041`（已下线） |
+| 最新一篇 | `GET /api/mp/cover?bookId=` | 正常，返回 `reviewId` 与标题 |
+
+书号与 fakeid 一一对应：`MP_WXS_` 加上 `__biz` 的 base64 解码数字（北理就业 `Mzg5ODcwMTAyMA==` → `MP_WXS_3898701020`）。文章永久链接由 `reviewId` 末段得到（`~` 还原为 `_`）：`https://mp.weixin.qq.com/s/<token>`。
+
+续期按网页版客户端实现（逆向 `cdn.weread.qq.com/web/wrwebnjlogic/js/app.*.js`）：只有请求返回 `-2012`/`-2010` 时，才 `POST /web/login/renewal {"rq": encodeURIComponent(失败路径), "ql": wr_ql=="1"}`，返回 `succ=1`（带新 `wr_skey`）或 `-12013` 后重放原请求；会话仍有效时调用续期会得到 `-2013 鉴权失败`。
+
+**覆盖边界：** cover 接口每次只给出一个号的最新一篇，因此单次推送里的第二篇及以后看不到；轮询间隔内同一号连发两次时，较早的一次也可能漏掉。官网和就业网的结构化接口不受此限，仍是活动信息的主要来源。
+
+**名单：** `config/wechat-accounts.json` 以运营者 2026-11-03 本机导出中已关注的北理相关号为起点（只取名称与 `__biz`，不涉及聊天内容），由公众号后台搜索补充已认证的学院、书院和职能部门号（`config/wechat-discovery.json`，只采纳已认证且名称同时含学校与单位关键词的结果）。
+
+以下为 2026-11-09 的早期调查记录。
+
 目标是让 VPS 自行采集公开来源，订阅者只需访问一个网页或 RSS。学校智能体只做语义分拣；公众号身份、列表权限、采集分页和增量状态仍由采集器维护。公开文章不意味着所有账号的完整列表无需授权即可枚举。
 
 ## 已验证到哪一步

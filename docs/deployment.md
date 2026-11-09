@@ -1,72 +1,98 @@
 # 部署与运维
 
-## 当前目录与职责
+## 目录与职责
 
 | 位置 | 用途 |
 | --- | --- |
-| `/opt/bitfeed-site` | VPS 项目与 `.venv`，运行用户 `bitfeed` |
-| `/var/lib/bitfeed-live/bitfeed.sqlite` | 当前服务器采集、来源状态、模型结果、预算和发送去重记录 |
-| `/var/lib/bitfeed-pipeline/site` | 仅公开导出文件 |
-| `/etc/bitfeed/runtime.env` | 私密环境变量 |
-| `/etc/bitfeed/school-api.json` | 已核对的学校请求合同，不在其中写真实密钥 |
-| `/var/lib/bitfeed-wechat/session.json` | 用户授权扫码产生的私密公众平台会话 |
+| `/opt/bitfeed-site` | 代码与 `.venv`；服务以 `bitfeed` 用户运行，工作目录在此 |
+| `/var/lib/bitfeed-live/bitfeed.sqlite` | 文章、分拣结果、来源状态、模型预算、飞书发送去重 |
+| `/var/lib/bitfeed-pipeline/site` | 公开导出（GitHub Pages 构建的数据来源） |
+| `/var/lib/bitfeed-weread/` | 微信读书会话 `session.json`、调度状态 `scheduler.json`、运行时添加的号 `extra-accounts.json` |
+| `/var/lib/bitfeed-wechat/` | 公众号后台会话 `session.json`、续期结果 `keepalive.json`、搜号结果 `resolved.json` |
+| `/etc/bitfeed/runtime.env` | 私密环境变量（学校 API key、飞书 webhook、登录维护口令） |
+| `/var/backups/bitfeed/` | 每次部署前的代码、配置与数据库备份 |
 
-`/var/lib/bitfeed-live` 是新建的服务器数据目录，不导入旧个人缓存。不运行本机微信读取任务。官网来源、公众号来源状态、文章、模型结果及投递记录由同一套 SQLite 流水线维护；私密会话文件单独保管，不进入公开输出。
+会话文件均为 0600。运维时不要输出文件正文、Cookie 或 token。
 
-公众平台会话所在私密路径已设置受限权限。运维时用 `stat` 核对属主及权限，确保仅授权运行用户可读取；不要输出文件正文、请求 Cookie 或 token。备份 SQLite 时使用 SQLite backup 接口或停写后一致性备份，恢复时保留内容指纹、来源状态及发送去重记录。
-
-## 日更与检查
-
-`deploy/bitfeed-daily.service` 执行 `server-daily`，先采集公开官网及已配置公众号来源，再分拣和导出。模型失败时仍导出已有及待分拣消息，任务返回失败供运维发现。来源失败独立记录，不能用空结果覆盖旧文章。
-
-当前 `bitfeed-daily.timer` 已 enabled，每日 07:50 北京时间运行；仓库使用 UTC 23:50 的 systemd 日历表达式。检查时无需再次启动全量采集：
+## 系统服务
 
 ```sh
-systemctl list-timers bitfeed-daily.timer
-systemctl status bitfeed-daily.service --no-pager
-journalctl -u bitfeed-daily.service -n 30 --no-pager
+systemctl list-timers --all | grep bitfeed
+systemctl status bitfeed-web.service --no-pager
+journalctl -u bitfeed-wechat.service -n 20 --no-pager
 ```
 
-需要手动补跑时执行 `systemctl start bitfeed-daily.service`，结束后检查退出码、来源状态、导出数量和实际模型。首次已核对官网采集为 career 2,261 条、websites 1,035 条，近 90 天导出 1,965 条；运行后数量可能变化。它们不表示所有源成功，也不表示公众号文章已采集。
+| 单元 | 作用 |
+| --- | --- |
+| `bitfeed-web.service` | 0.0.0.0:18780：`/health`、`/site-data.json`、`/feed.json`、`/test-receipts`、`/ops/<口令>/` |
+| `bitfeed-wechat.timer` | 每 5 分钟一次微信读书订阅（`python -m bitfeed wechat-sync`） |
+| `bitfeed-keepalive.timer` | 每 30 分钟：公众号后台续期（`session-keepalive`）后检查提醒（`alerts`） |
+| `bitfeed-refresh.timer` | 每 2 小时及周四、周日 11:40：分拣与导出（`refresh`，每次最多 3 批） |
+| `bitfeed-daily.timer` | 每天 07:50：就业网与官网采集、分拣、导出（`server-daily`） |
+| `bitfeed-digest.timer` | 周四、周日 12:00：飞书汇总（`feishu-digest`） |
 
-每源公开审计保留 `state/pages/fetched/count/complete/truncated/last_successful_at/error/scope`。达到页数上限表示截断，观察不到下一页不必然表示全历史结束。缺少发布日期证据时显示首次收录；活动日期单独保存。
+旧的 `bitfeed-pipeline.service`（读本机微信导出的测试接口）已停用，`/feed.json` 改由新服务从线上数据库提供，格式不变。
 
-## 公众号会话与冷却
+## 部署新版本
 
-用户已确认授权 VPS 扫码，登录后可见账号数 1；“北理就业”搜索成功。首次 `appmsgpublish` 文章列表返回 `200013`、没有文章，采集已停止并写入 30 分钟持久冷却。冷却只是限制重试，不能证明上游届时恢复。结合上游项目停维护公告，目前配置已暂停该列表的自动请求（`enabled=false`），保留会话和核验记录。重启进程也不应绕过冷却，不轮换账号、IP 或接口继续冲击。
+在本地仓库：
 
-扫码授权、搜索可用和文章列表成功是三个独立检查。会话失效需在服务器受控入口重新由用户扫码；不取用本机微信数据库或学校网页登录 Cookie。公开合集目前未配置，历史公众号候选名单默认不发起批量请求。详见 [订阅调查](subscription-research.md)。
+```sh
+git archive --format=tar.gz -o release.tgz HEAD bitfeed config deploy docs tests pyproject.toml README.md collect_site_feed.py
+scp release.tgz ty-vscode:/tmp/bitfeed-stage/
+```
 
-## 学校模型
+在 VPS（root）：先备份 `/opt/bitfeed-site`、`/etc/bitfeed/runtime.env`，用 SQLite backup 接口备份数据库，然后
 
-学校 HiAgent 已发布“学生服务”v1.1.0，VPS 使用 V2 streaming 完成过 3 条分拣并校验入库。配置参照仓库 `config/hiagent-bit.json`，运行环境通过 `BIT_AGENT_CONTRACT` 指向服务器合同文件，`BIT_AGENT_API_KEY` 使用单独的 HiAgent 凭证。MaaS 的密钥不能混用。
+```sh
+cd /opt/bitfeed-site && tar -xzf /tmp/bitfeed-stage/release.tgz
+.venv/bin/pip install --no-deps .
+install -m 0644 deploy/bitfeed-*.service deploy/bitfeed-*.timer /etc/systemd/system/
+systemctl daemon-reload && systemctl restart bitfeed-web.service
+```
 
-API key 仅发送到学校 HTTPS 地址，禁止重定向；失败日志不包含鉴权头或完整请求、响应。默认每批 20 条、每日最多 20 次请求，失败请求也消耗预算。详情及成功条件见 [学校接口](school-token.md)。
+这台 VPS 同时承担 A800 的反向隧道跳板，部署只动 `bitfeed-*` 单元和上面列出的目录。
 
-## GitHub Pages
+## 登录维护
 
-公开仓库为 [lankerr/bit-student-feed](https://github.com/lankerr/bit-student-feed)。Pages Source 已设为 GitHub Actions，非私密变量 `BITFEED_SOURCE_URL` 指向 VPS 的只读公开 `site-data.json`。首次 [Pages 部署](https://github.com/lankerr/bit-student-feed/actions/runs/42652467748)已成功，站点 https://lankerr.github.io/bit-student-feed/ 已实际打开。
+两个登录平时自动续期。失效或即将过期时，飞书运维群会收到提醒和“登录维护”链接（即 `runtime.env` 里的 `BITFEED_OPS_URL`）。打开后：
 
-在 Actions → Daily public feed 手动运行；需确认构建和 Pages 部署均成功，再核对网页、`data.json`、`sources.json`、`feed.xml` 和 `activities.xml` 能访问且时间、条数、来源状态一致。工作流计划每天北京时间 08:20，可能延迟。
+- **扫码登录微信读书**：用任何微信扫码确认即可；新账号的书架为空时，订阅程序会自动重新关注名单里的号。
+- **扫码登录公众号后台**：需要对某个公众号有管理权限的微信（目前用运营者自己的公众号）。
+- **添加订阅的公众号**：粘贴该号任意一篇文章链接，服务器从公开文章页读出账号身份，几分钟内开始订阅。
 
-GitHub 只拉公开成品，不配置学校密钥、微信会话或飞书 webhook。VPS 导出不可达或格式错误应令构建失败，不用空数据覆盖已发布内容。
+不方便开网页时，也可以在服务器上运行：
+
+```sh
+runuser -u bitfeed -- /opt/bitfeed-site/.venv/bin/python -m bitfeed weread-login   # 二维码在 /var/lib/bitfeed-weread/weread-qr.png
+runuser -u bitfeed -- /opt/bitfeed-site/.venv/bin/python -m bitfeed.wechat_auth --directory /var/lib/bitfeed-wechat
+```
+
+## 订阅节奏与限流
+
+每次运行最多 3 个微信读书请求，相邻请求至少间隔 50～80 秒（跨运行也生效），每天上限 600 个。档位：0 档每小时、1 档每 3 小时、2 档每 8 小时；连续 14 天没有新文章的号频率减半。限流（`-2014`、`-2041`、HTTP 499，或续期后仍被拒）后全部暂停，按 0.5、1、2、4、8、12 小时逐级退避，24 小时无限流后退一级。
+
+文章正文从公开文章页读取，每次 1～2 篇，间隔 25～45 秒，每天上限 240 篇；遇到“环境异常”验证页暂停 2 小时。
 
 ## 飞书
 
-卡片及纯文本 F2 的实际测试均返回 HTTP 200 / `code=0`；这是接口接收证据。用户尚未确认在群中看见，正式发送开关和定时器保持关闭。
+`FEISHU_TEST_WEBHOOK` 是运营者所在的群，目前汇总（`BITFEED_DIGEST_MODE=test`）和运维提醒都发到这里。正式发到“北京理工大学学术实践部”群时，在 `runtime.env` 中设置：
 
-由关涵月核对测试消息所在群、标题、原文链接及排版，再确认正式目标“北京理工大学学术实践部”。计划北京时间周四、周日 12:00 汇总；正式启用需要正确的生产目标及 `BITFEED_PRODUCTION_SEND=true`。webhook 和可选签名密钥只放服务端。
+```sh
+FEISHU_PRODUCTION_WEBHOOK=<该群自定义机器人地址>
+BITFEED_PRODUCTION_SEND=true
+BITFEED_DIGEST_MODE=production
+```
 
-发送记录持久化去重。超时为 `unknown`，先人工查看群消息，不能删除记录后盲目重发；HTTP 200 还需业务 `code=0` 才记接口成功。
+运维提醒想单独发到另一个群时，设置 `FEISHU_OPS_WEBHOOK`。发送结果以飞书返回的 `code=0` 为准；超时记为 `unknown`，不会自动重发。同一批文章不会重复发送，汇总窗口只在发送成功后前移。
 
 ## 故障定位
 
 | 现象 | 检查 |
 | --- | --- |
-| 页面新、来源时间旧 | 查看具体源的失败、截断和上次成功时间；页面生成不代表采集成功 |
-| 公众号没有文章 | 分别核对登录、搜索、列表状态；当前 `200013` 已持久冷却；冷却不保证恢复，不宣称订阅成功 |
-| 新消息仍待分拣 | 检查 HiAgent 合同、凭证、应用发布版本、预算和模型失败状态 |
-| MaaS 在 VPS 解析失败 | 当前 MaaS 指向校内私网；使用已配置的学校公网 HiAgent 路线 |
-| 活动数少或为 0 | 核对活动日期、截止证据、官方状态与正文范围，不凑数 |
-| Pages 构建失败 | 检查公开 JSON 和 Actions 日志，保留上次成功部署 |
-| 飞书接口成功但群里未见 | 核对实际机器人对应群及消息记录，确认可见后才开正式定时 |
+| 公众号长时间没有新文章 | 登录维护页的会话状态；`scheduler.json` 中的 `cooldown_until`、各号 `state`/`error` |
+| 微信读书显示已失效 | 打开登录维护页重新扫码；续期失败的原因见 `journalctl -u bitfeed-wechat` |
+| 公众号后台显示即将过期 | `keepalive.json` 的 `expires_at` 应在每次续期后顺延 4 天；不顺延时重新扫码 |
+| 新消息仍待分拣 | `refresh` 的输出、学校 API 预算（每日 20 次）、`model_retry_after` |
+| 网页没更新 | GitHub Actions 的 Daily public feed 运行记录；`curl http://127.0.0.1:18780/site-data.json` |
+| 飞书没收到汇总 | `journalctl -u bitfeed-digest`；`deliveries` 表中的状态 |
