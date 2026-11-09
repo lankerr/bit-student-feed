@@ -100,6 +100,18 @@ class WebsitesTest(unittest.TestCase):
         self.assertEqual(data["sources"][0]["error"],"HTTP 302")
         self.assertEqual(len(data["articles"]),1)
 
+    def test_next_page_404_after_success_is_pagination_end(self):
+        first='''<meta charset="utf-8"><li>2026-11-09<a href="a.htm">学院学生工作公开通知消息</a></li><a href="index1.htm">下一页</a>'''
+        second_url="https://example.bit.edu.cn/tzgg/index1.htm"
+        data,http=self.run_collect({SOURCE["url"]:first,second_url:Response("",404)})
+        self.assertEqual([u for u,_ in http.calls],[SOURCE["url"],second_url])
+        self.assertEqual(data["sources"][0]["state"],"ok")
+        self.assertTrue(data["sources"][0]["exhausted"])
+        self.assertEqual(data["sources"][0]["pagination_status"],"next_not_found")
+        self.assertNotIn("error",data["sources"][0])
+        self.assertEqual(data["sources"][0]["url"],SOURCE["url"])
+        self.assertEqual(len(data["articles"]),1)
+
     def test_same_host_http_to_https_upgrade_is_followed_once(self):
         http_url="http://example.bit.edu.cn/tzgg/index.htm"
         https_url="https://example.bit.edu.cn/tzgg/index.htm"

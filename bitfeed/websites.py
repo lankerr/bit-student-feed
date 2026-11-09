@@ -288,6 +288,14 @@ def collect(config_path=None, session=None, max_pages=3):
                     visited.add(url)
                     visited.add(resolved)
                     url = resolved
+                    # Some BIT list pages keep a "next" link past the last page.
+                    # A 404 after successful pages means pagination ended, not a source outage.
+                    if response.status_code == 404 and audit["pages"]:
+                        audit["exhausted"] = True
+                        audit["pagination_status"] = "next_not_found"
+                        audit.pop("next_url", None)
+                        audit["url"] = audit.get("url") or source["url"]
+                        break
                     audit["url"] = url
                     if response.status_code != 200:
                         raise RuntimeError("HTTP " + str(response.status_code))
