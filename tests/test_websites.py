@@ -147,9 +147,10 @@ class WebsitesTest(unittest.TestCase):
         self.assertEqual(len(data["articles"]),1)
         self.assertTrue(data["articles"][0]["url"].endswith("/a.htm"))
 
-    def test_config_contains_only_thirty_public_sources(self):
+    def test_config_contains_the_public_sources(self):
         sources=_load_config()
-        self.assertEqual(len(sources),30)
+        self.assertEqual(len(sources),31)
+        self.assertIn("https://opt.bit.edu.cn/tzgg2/tzgg/index.htm", [s["url"] for s in sources])
         self.assertTrue(all(set(s)=={"id","name","url"} for s in sources))
         self.assertTrue(all("bit.edu.cn" in s["url"] for s in sources))
 
