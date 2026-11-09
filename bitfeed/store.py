@@ -82,7 +82,11 @@ class Store:
             rows = conn.execute('''SELECT a.* FROM articles a LEFT JOIN classifications c
                 ON c.article_id=a.id WHERE a.published_at>=? AND (a.source_expiry=0 OR a.source_expiry>=?) AND
                 (c.article_id IS NULL OR c.source_hash!=a.source_hash OR c.prompt_version!=?)
-                ORDER BY a.published_at DESC LIMIT ?''', (int(time.time())-days*86400, int(time.time()), PROMPT_VERSION, limit)).fetchall()
+                ORDER BY CASE WHEN a.body_status='structured_list_metadata' AND a.source_expiry>? THEN 0
+                    WHEN a.publication_status='known' THEN 1
+                    WHEN a.body_status='structured_list_metadata' THEN 2 ELSE 3 END,
+                    a.published_at DESC LIMIT ?''',
+                (int(time.time())-days*86400, int(time.time()), PROMPT_VERSION, int(time.time()), limit)).fetchall()
         return [dict(row) for row in rows]
 
     def apply_classifications(self, data, model, expected=None):

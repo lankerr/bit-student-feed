@@ -324,6 +324,8 @@ def collect(config_path, auth_path, max_pages=100, session=None):
             try:
                 if spec.get("enabled") is False:
                     audit["state"] = "disabled"
+                    if spec.get("disabled_reason") == "upstream_list_unavailable":
+                        audit["disabled_reason"] = "upstream_list_unavailable"
                     continue
                 if fatal is not None:
                     raise fatal
@@ -331,6 +333,8 @@ def collect(config_path, auth_path, max_pages=100, session=None):
                 platform._source_names[fakeid] = audit["name"]
                 groups, identities, seen_pages, total = set(), set(), set(), None
                 for page_number in range(max_pages):
+                    if page_number and platform._owned_session:
+                        time.sleep(12)
                     page = platform.list_page(fakeid,begin=page_number*5,count=5,endpoint=audit["endpoint"])
                     audit["pages"] += 1
                     fingerprint = tuple(page["group_ids"])

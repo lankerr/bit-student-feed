@@ -196,5 +196,14 @@ class PipelineTest(unittest.TestCase):
         a=normalize_article(source())
         with self.assertRaises(ValueError):validate_classification(answer(a,next_step='请拨打010-12345678报名。'),a)
 
+    def test_model_queue_prioritizes_upcoming_source_evidence_over_undated_archive(self):
+        old=source(url='https://cs.bit.edu.cn/old.htm',publication_status='unknown',
+            body_status='title_and_publication_date',published_at=int(time.time()))
+        upcoming=source(url='https://job.bit.edu.cn/f/recruitmentFair/show?id=1',
+            publication_status='unknown',body_status='structured_list_metadata',
+            source_event_end='2099-12-01 18:00:00',published_at=int(time.time())-60)
+        self.store.import_articles([old,upcoming])
+        self.assertEqual(self.store.candidates(1)[0]['url'],upcoming['url'])
+
 
 if __name__=="__main__":unittest.main()

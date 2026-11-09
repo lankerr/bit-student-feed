@@ -33,7 +33,7 @@ journalctl -u bitfeed-daily.service -n 30 --no-pager
 
 ## 公众号会话与冷却
 
-用户已确认授权 VPS 扫码，登录后可见账号数 1；“北理就业”搜索成功。首次 `appmsgpublish` 文章列表返回 `200013`、没有文章，采集已停止并写入 30 分钟持久冷却。重启进程也不应绕过冷却，不轮换账号、IP 或接口继续冲击。
+用户已确认授权 VPS 扫码，登录后可见账号数 1；“北理就业”搜索成功。首次 `appmsgpublish` 文章列表返回 `200013`、没有文章，采集已停止并写入 30 分钟持久冷却。冷却只是限制重试，不能证明上游届时恢复。结合上游项目停维护公告，目前配置已暂停该列表的自动请求（`enabled=false`），保留会话和核验记录。重启进程也不应绕过冷却，不轮换账号、IP 或接口继续冲击。
 
 扫码授权、搜索可用和文章列表成功是三个独立检查。会话失效需在服务器受控入口重新由用户扫码；不取用本机微信数据库或学校网页登录 Cookie。公开合集目前未配置，历史公众号候选名单默认不发起批量请求。详见 [订阅调查](subscription-research.md)。
 
@@ -45,7 +45,7 @@ API key 仅发送到学校 HTTPS 地址，禁止重定向；失败日志不包�
 
 ## GitHub Pages
 
-公开仓库为 [lankerr/bit-student-feed](https://github.com/lankerr/bit-student-feed)，初稿提交 `9887bde`。Pages Source 已设为 GitHub Actions，非私密变量 `BITFEED_SOURCE_URL` 已保存，指向 VPS 的只读公开 `site-data.json`。当前网站部署尚待验收。
+公开仓库为 [lankerr/bit-student-feed](https://github.com/lankerr/bit-student-feed)。Pages Source 已设为 GitHub Actions，非私密变量 `BITFEED_SOURCE_URL` 指向 VPS 的只读公开 `site-data.json`。首次 [Pages 部署](https://github.com/lankerr/bit-student-feed/actions/runs/42652467748)已成功，站点 https://lankerr.github.io/bit-student-feed/ 已实际打开。
 
 在 Actions → Daily public feed 手动运行；需确认构建和 Pages 部署均成功，再核对网页、`data.json`、`sources.json`、`feed.xml` 和 `activities.xml` 能访问且时间、条数、来源状态一致。工作流计划每天北京时间 08:20，可能延迟。
 
@@ -64,7 +64,7 @@ GitHub 只拉公开成品，不配置学校密钥、微信会话或飞书 webhoo
 | 现象 | 检查 |
 | --- | --- |
 | 页面新、来源时间旧 | 查看具体源的失败、截断和上次成功时间；页面生成不代表采集成功 |
-| 公众号没有文章 | 分别核对登录、搜索、列表状态；当前 `200013` 等待持久冷却，不宣称订阅成功 |
+| 公众号没有文章 | 分别核对登录、搜索、列表状态；当前 `200013` 已持久冷却；冷却不保证恢复，不宣称订阅成功 |
 | 新消息仍待分拣 | 检查 HiAgent 合同、凭证、应用发布版本、预算和模型失败状态 |
 | MaaS 在 VPS 解析失败 | 当前 MaaS 指向校内私网；使用已配置的学校公网 HiAgent 路线 |
 | 活动数少或为 0 | 核对活动日期、截止证据、官方状态与正文范围，不凑数 |

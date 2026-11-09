@@ -88,9 +88,12 @@ def rss(path, articles, title, base):
         item = ET.SubElement(channel,"item")
         c = a.get("classification") or {}
         text = c.get("summary") or "新消息，等待学校模型分拣。请打开原文核实。"
-        for k,v in (("title",a["title"]),("link",a["url"]),("guid",a["id"]),
-                    ("pubDate",format_datetime(datetime.fromtimestamp(a["published_at"],TZ))),
-                    ("description",text + " 来源：" + a["source"])):
+        unknown=a.get("publication_status")=="unknown"
+        if unknown:text="首次收录，原文发布日期未核验。"+text
+        fields=[("title",a["title"]),("link",a["url"]),("guid",a["id"]),
+                ("description",text + " 来源：" + a["source"])]
+        if not unknown:fields.append(("pubDate",format_datetime(datetime.fromtimestamp(a["published_at"],TZ))))
+        for k,v in fields:
             ET.SubElement(item,k).text = str(v)
     atomic_text(path,ET.tostring(root,encoding="unicode",xml_declaration=True))
 
@@ -108,6 +111,6 @@ def build(data, destination, base_url="https://lankerr.github.io/bit-student-fee
     if candidate_path.exists():copyfile(candidate_path,dest/"wechat-candidates.json")
     report, active = guidance(data)
     atomic_text(dest/"daily.md",report)
-    rss(dest/"feed.xml", sorted(data["articles"],key=lambda a:a["published_at"],reverse=True), "北理新消息",base_url)
+    rss(dest/"feed.xml", sorted(data["articles"],key=lambda a:(a.get("publication_status")=="unknown",-a["published_at"])), "北理新消息",base_url)
     rss(dest/"activities.xml", active,"北理可参加活动",base_url)
     return {"articles":len(data["articles"]),"verified_activities":len(active),"output":str(dest)}

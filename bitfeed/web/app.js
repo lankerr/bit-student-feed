@@ -2,7 +2,7 @@
 const $ = id => document.getElementById(id);
 const labels={academic:'学术讲座',competition:'竞赛创新',career:'升学就业',volunteer:'实践志愿',campus_service:'校园服务',other:'其他'};
 const states={actionable:'可参加',needs_verification:'待核验',expired:'已结束',recap:'活动回顾',not_event:'资讯通知'};
-const sourceStates={ok:'正常',partial:'部分完成',failed:'采集失败',empty:'未取到消息',not_configured:'未配置',unconfigured:'未配置',pending_configuration:'未配置',disabled:'未启用',pending:'待检查'};
+const sourceStates={ok:'正常',partial:'部分完成',failed:'采集失败',empty:'未取到消息',not_configured:'未配置',unconfigured:'未配置',pending_configuration:'未配置',disabled:'未启用',pending:'待检查',rate_limited:'频控冷却',auth_expired:'授权已过期',auth_missing:'未授权',blocked:'验证受阻'};
 const unconfigured=s=>['not_configured','unconfigured','pending_configuration'].includes(s.state)||s.configured===false;
 let articles=[], scope='all', shown=30;
 const today=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
@@ -17,7 +17,9 @@ function link(title,url){const a=el('a',title);const u=new URL(url);if(!['https:
 function sourceError(value){const raw=String(value||'');if(/^HTTP [1-5]\d\d$/.test(raw))return raw;const errors={Timeout:'请求超时',ReadTimeout:'读取超时',ConnectTimeout:'连接超时',ConnectionError:'连接失败',JSONDecodeError:'返回格式异常',ValueError:'列表或分页校验未通过'};return errors[raw]||(raw?'请求或解析失败':'');}
 function sourceBoundary(s){
   if(unconfigured(s))return '尚未接入，不计入已覆盖范围';
-  if(s.state==='disabled')return '当前未启用';
+  if(s.state==='disabled')return s.disabled_reason==='upstream_list_unavailable'?'文章列表未接通，自动请求已暂停；上次返回 200013':'当前未启用';
+  if(s.state==='rate_limited')return '上游返回 200013；冷却不保证恢复'+(s.retry_after?'。禁止早于 '+dateTime(s.retry_after*1000)+' 重试':'');
+  if(s.state==='auth_expired'||s.state==='auth_missing')return '需要服务器端扫码授权';
   if(s.error||s.state==='failed')return '本轮未完成，历史收录继续保留';
   if(s.truncated)return s.pagination_status==='cap_reached'?'已到分页上限，仍有未查页':'本轮分页未完成';
   if(s.scope==='observed_list_pages')return s.complete?'已检查可见分页，不代表全历史':'仅检查已开放的列表范围';
@@ -31,12 +33,12 @@ function renderSources(data){
   $('source-rows').replaceChildren();
   if(!sources.length){const row=el('tr'),cell=el('td','尚未提供来源核对清单，当前无法确认覆盖范围。');cell.colSpan=6;row.append(cell);$('source-rows').append(row);$('source-summary').textContent='来源范围待核对';return sources;}
   const missing=sources.filter(unconfigured).length;
-  const attention=sources.filter(s=>!unconfigured(s)&&(s.error||s.truncated||['failed','partial','empty'].includes(s.state))).length;
+  const attention=sources.filter(s=>!unconfigured(s)&&(s.error||s.truncated||['failed','partial','empty','rate_limited','auth_expired','auth_missing','blocked'].includes(s.state))).length;
   $('source-summary').textContent='已配置 '+(sources.length-missing)+' 项 · 待处理 '+attention+' 项 · 未配置 '+missing+' 项';
   for(const s of sources){
     const row=el('tr'),name=el('th',s.name||s.source||s.id||'未命名来源');name.scope='row';
     const status=el('td'),state=unconfigured(s)?'未配置':sourceStates[s.state]||'状态未注明';
-    status.append(el('span',state,'source-state '+(unconfigured(s)||s.state==='disabled'?'source-off':s.error||['partial','failed','empty'].includes(s.state)?'source-attention':'source-ok')));
+    status.append(el('span',state,'source-state '+(unconfigured(s)||s.state==='disabled'?'source-off':s.error||['partial','failed','empty','rate_limited','auth_expired','auth_missing','blocked'].includes(s.state)?'source-attention':'source-ok')));
     const error=sourceError(s.error);if(error)status.append(el('small',error,'source-error'));
     row.append(name,status,el('td',unconfigured(s)?'—':countText(s.pages)+' 页'),el('td',unconfigured(s)?'—':countText(s.fetched)+' / '+countText(s.count)),el('td',unconfigured(s)?'—':dateTime(s.last_successful_at)),el('td',sourceBoundary(s),'source-scope'));
     $('source-rows').append(row);
@@ -57,7 +59,9 @@ function sourceEventNote(a){
 function render(){
   const q=$('query').value.trim().toLowerCase(),cat=$('category').value,sort=$('sort').value;
   let list=articles.filter(a=>(scope==='all'||(scope==='active'?active(a):!a.classification||articleState(a)==='needs_verification'))&&(cat==='all'||a.classification?.category===cat)&&(!q||[a.title,a.source,a.classification?.summary].join(' ').toLowerCase().includes(q)));
-  list.sort((a,b)=>sort==='rank'?(b.classification?.score??-1)-(a.classification?.score??-1)||b.published_at-a.published_at:sort==='deadline'?((active(a)&&a.classification.deadline)||'9999').localeCompare((active(b)&&b.classification.deadline)||'9999')||b.published_at-a.published_at:b.published_at-a.published_at);
+  const newest=(a,b)=>Number(a.publication_status==='unknown')-Number(b.publication_status==='unknown')||b.published_at-a.published_at;
+  const past=a=>['expired','recap'].includes(articleState(a));
+  list.sort((a,b)=>sort==='rank'?Number(past(a))-Number(past(b))||(b.classification?.score??-1)-(a.classification?.score??-1)||newest(a,b):sort==='deadline'?((active(a)&&(a.classification.deadline||a.classification.event_date))||'9999').localeCompare((active(b)&&(b.classification.deadline||b.classification.event_date))||'9999')||newest(a,b):newest(a,b));
   $('count').textContent=list.length+' 条';$('feed').replaceChildren();
   for(const a of list.slice(0,shown)){
     const c=a.classification,n=el('article',undefined,'article'),date=el('div',a.date||'日期未注明','article-date');

@@ -143,6 +143,17 @@ class WechatPlatformTest(unittest.TestCase):
         self.assertTrue(all(s['state']=='rate_limited' for s in result['sources']))
         self.assertFalse(any(s['complete'] for s in result['sources']))
 
+    def test_suspended_upstream_makes_no_requests(self):
+        path=Path(self.tmp.name)/'accounts.json'
+        path.write_text(json.dumps({"accounts":[{"fakeid":ACCOUNT,"name":"北理就业",
+            "enabled":False,"disabled_reason":"upstream_list_unavailable"}]}),encoding='utf-8')
+        http=HTTP([])
+        result=collect(path,self.auth,session=http)
+        self.assertEqual(http.calls,[])
+        self.assertEqual(result['sources'][0]['state'],'disabled')
+        self.assertEqual(result['sources'][0]['disabled_reason'],'upstream_list_unavailable')
+        self.assertFalse(result['sources'][0]['complete'])
+
     def test_collect_requires_verified_totals_and_detects_repeated_pages(self):
         path=Path(self.tmp.name)/'accounts.json'
         path.write_text(json.dumps({"accounts":[{"fakeid":ACCOUNT,"name":"北理就业"}]}),encoding='utf-8')

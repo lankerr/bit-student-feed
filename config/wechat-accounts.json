@@ -1,5 +1,6 @@
 {
   "accounts": [
-    {"fakeid":"Mzg5ODcwMTAyMA==", "name":"北理就业", "alias":"bitjiuye", "endpoint":"appmsgpublish"}
+    {"fakeid":"Mzg5ODcwMTAyMA==", "name":"北理就业", "alias":"bitjiuye", "endpoint":"appmsgpublish",
+     "enabled":false,"disabled_reason":"upstream_list_unavailable"}
   ]
 }
