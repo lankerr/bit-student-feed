@@ -49,6 +49,7 @@ def main():
     sync=sub.add_parser("wechat-sync",help="one paced WeRead subscription run")
     sync.add_argument("--calls",default=3,type=int)
     sync.add_argument("--bodies",default=2,type=int)
+    sync.add_argument("--follows",default=2,type=int)
     sub.add_parser("weread-login",help="server-side WeRead QR login")
     sub.add_parser("session-keepalive",help="extend the public-platform login")
     resolve=sub.add_parser("wechat-resolve",help="resolve official accounts via public-platform search")
@@ -76,7 +77,7 @@ def main():
     result={}
     if args.command=="wechat-sync":
         from .subscribe import Worker
-        print(json.dumps(Worker(store,WEREAD_DIR).run(args.calls,args.bodies),ensure_ascii=False)); return 0
+        print(json.dumps(Worker(store,WEREAD_DIR).run(args.calls,args.bodies,args.follows),ensure_ascii=False)); return 0
     if args.command=="alerts":
         from .alerts import run as run_alerts
         print(json.dumps(run_alerts(store,WEREAD_DIR,WECHAT_DIR),ensure_ascii=False)); return 0

@@ -134,11 +134,12 @@ class Worker:
         return result
 
     # ---------- run ----------
-    def run(self, calls=CALLS_PER_RUN, bodies=BODIES_PER_RUN):
+    def run(self, calls=CALLS_PER_RUN, bodies=BODIES_PER_RUN, follows=FOLLOWS_PER_RUN):
         self.root.mkdir(parents=True, exist_ok=True)
         with exclusive(self.root / ".scheduler.lock"):
             self.state = self._load_state()
             self.calls_left = calls
+            self.follows = follows
             summary = {"new": 0, "checked": 0, "followed": 0, "bodies": 0, "stopped": None}
             try:
                 self.session = WeReadSession.load(self.root / "session.json", http=self.http)
@@ -176,7 +177,7 @@ class Worker:
                 records[account["book_id"]]["followed"] = account["book_id"] in books
         pending = [a for a in accounts if not records[a["book_id"]].get("followed")
                    and float(records[a["book_id"]].get("follow_retry_at", 0)) <= self.clock()]
-        for account in pending[:FOLLOWS_PER_RUN]:
+        for account in pending[:self.follows]:
             record = records[account["book_id"]]
             try:
                 self._call(self.session.follow, account["book_id"])

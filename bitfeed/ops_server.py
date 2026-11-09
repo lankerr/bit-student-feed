@@ -30,10 +30,15 @@ LIVE = Path(os.getenv("BITFEED_DATA", "/var/lib/bitfeed-live"))
 WEREAD = Path(os.getenv("BITFEED_WEREAD_DIR", "/var/lib/bitfeed-weread"))
 WECHAT = Path(os.getenv("BITFEED_WECHAT_DIR", "/var/lib/bitfeed-wechat"))
 RECEIPTS = Path(os.getenv("BITFEED_RECEIPTS", "/var/lib/bitfeed-pipeline/receipts.sqlite"))
-LOGINS = {"weread": ("bitfeed.weread_auth", WEREAD, "login-status.json", "weread-qr.png", "900"),
-          "mp": ("bitfeed.wechat_auth", WECHAT, "status.json", "qr.png", "300")}
 _running = {}
 _lock = threading.Lock()
+
+
+def _login(kind):
+    """(module, directory, status file, QR file, wait seconds) for a login kind."""
+    if kind == "weread":
+        return "bitfeed.weread_auth", WEREAD, "login-status.json", "weread-qr.png", "900"
+    return "bitfeed.wechat_auth", WECHAT, "status.json", "qr.png", "300"
 
 
 def _read(path):
@@ -70,7 +75,7 @@ def status():
 
 
 def start_login(kind):
-    module, root, status_name, qr_name, wait = LOGINS[kind]
+    module, root, status_name, qr_name, wait = _login(kind)
     with _lock:
         process = _running.get(kind)
         if process is not None and process.poll() is None:
@@ -179,7 +184,7 @@ class Handler(BaseHTTPRequestHandler):
         if sub == "/status.json":
             return self._send(200, status())
         if sub in ("/qr/weread.png", "/qr/mp.png"):
-            _, root, _, qr_name, _ = LOGINS[sub[4:-4]]
+            _, root, _, qr_name, _ = _login(sub[4:-4])
             try:
                 return self._send(200, (root / qr_name).read_bytes(), "image/png")
             except OSError:
