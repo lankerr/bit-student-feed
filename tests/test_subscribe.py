@@ -121,7 +121,11 @@ class DigestAlertTest(unittest.TestCase):
             {"url": "https://mp.weixin.qq.com/s/aaaaaaaaaa2", "title": "篮球赛圆满落幕", "source": "BITYOUTH",
              "published_at": now - 3600, "origin": "weread"},
             {"url": "https://mp.weixin.qq.com/s/aaaaaaaaaa3", "title": "秋日的校园", "source": "北京理工大学",
-             "published_at": now - 3600, "origin": "weread"}])
+             "published_at": now - 3600, "origin": "weread"},
+            {"url": "https://www.bit.edu.cn/tzgg17/zcgg/x.htm", "title": "红外无损检测系统采购更正公告", "source": "北理工主页",
+             "published_at": now - 3600, "kind": "site"},
+            {"url": "https://math.bit.edu.cn/x.htm", "title": "关于开展第六届费振勇奖学金评选的通知", "source": "数学学院",
+             "published_at": now - 3600, "kind": "site"}])
 
     def tearDown(self):
         self.tmp.cleanup()
@@ -131,8 +135,11 @@ class DigestAlertTest(unittest.TestCase):
         self.assertIn("【升学就业】", built["markdown"])
         self.assertIn("2027届选调生宣讲会", built["markdown"])
         self.assertNotIn("圆满落幕", built["markdown"])
+        self.assertNotIn("采购", built["markdown"])
         self.assertIn("【公众号其他新推送】", built["markdown"])
-        self.assertEqual(len(built["article_ids"]), 2)
+        services = built["markdown"].split("【通知与服务】")[1].split("【")[0]
+        self.assertIn("费振勇奖学金", services)
+        self.assertEqual(len(built["article_ids"]), 3)
         self.assertTrue(built["title"].startswith("北理消息汇总 · "))
 
     def test_digest_window_advances_only_after_delivery(self):

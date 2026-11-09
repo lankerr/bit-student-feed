@@ -10,14 +10,16 @@ from .domain import TZ
 
 SITE = os.getenv("BITFEED_PUBLIC_URL", "https://lankerr.github.io/bit-student-feed/")
 WEEKDAY = "一二三四五六日"
-RULES = (("career", re.compile(r"选调|招聘|宣讲|双选|校招|实习|就业|offer|岗位|人才引进|公务员|考公")),
+RULES = (("campus_service", re.compile(r"奖学金|助学金|评优|优秀学生|推免|资助")),
+         ("career", re.compile(r"选调|招聘|宣讲|双选|校招|实习|就业|offer|岗位|人才引进|公务员|考公")),
          ("academic", re.compile(r"讲座|报告会|论坛|学术|沙龙|研讨|讲坛|课堂|分享会|青年汇")),
-         ("competition", re.compile(r"竞赛|大赛|挑战杯|比赛|创新创业|互联网\+|作品征集|评选")),
+         ("competition", re.compile(r"竞赛|大赛|挑战杯|比赛|创新创业|互联网\+|作品征集")),
          ("volunteer", re.compile(r"志愿|实践|支教|调研团|社会实践")),
-         ("campus_service", re.compile(r"奖学金|助学|评优|推免|招生|报名|选课|考试|通知|公告|公示|申请|资助")))
+         ("campus_service", re.compile(r"招生|报名|选课|考试|通知|公告|公示|申请")))
 SECTIONS = (("actionable", "近期可参加"), ("career", "升学就业"), ("academic", "学术讲座"),
             ("competition", "竞赛创新"), ("volunteer", "实践志愿"), ("campus_service", "通知与服务"))
-SKIP = re.compile(r"圆满|落幕|收官|回顾|喜报|荣获|祝贺|节日快乐|生日快乐|快乐！$")
+SKIP = re.compile(r"圆满|落幕|收官|回顾|喜报|荣获|祝贺|节日快乐|生日快乐|快乐！$|"
+                  r"采购|招标|中标|成交|比选|询价|磋商|更正公告|结果公告")
 
 
 def _guess(title):
