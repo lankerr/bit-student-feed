@@ -9,11 +9,16 @@ TIER_INTERVAL = {0: 3600, 1: 3 * 3600, 2: 8 * 3600}
 DEFAULT_PATH = Path(__file__).parent.parent / "config" / "wechat-accounts.json"
 
 
-def load(path=DEFAULT_PATH, include_disabled=False):
+def load(path=DEFAULT_PATH, include_disabled=False, extra=None):
+    """Repository registry plus accounts added at runtime (``extra``, skipped if absent)."""
     data = json.loads(Path(path).read_text(encoding="utf-8-sig"))
     rows = data.get("accounts") if isinstance(data, dict) else None
     if not isinstance(rows, list):
         raise ValueError("wechat-accounts.json must contain an accounts list")
+    if extra is not None and Path(extra).exists():
+        known = {r.get("fakeid") for r in rows if isinstance(r, dict)}
+        added = json.loads(Path(extra).read_text(encoding="utf-8")).get("accounts", [])
+        rows = rows + [r for r in added if isinstance(r, dict) and r.get("fakeid") not in known]
     accounts, seen = [], set()
     for row in rows:
         if not isinstance(row, dict) or not row.get("name") or not row.get("fakeid"):

@@ -93,6 +93,32 @@ def start_login(kind):
     return True
 
 
+def add_account(link):
+    """Subscribe to the account that published ``link`` (any of its public articles)."""
+    from . import accounts, article_page
+    from .weread import book_id_from_fakeid, private_json
+    if not re.fullmatch(r"https://mp\.weixin\.qq\.com/s[/?][^\s]{4,400}", link or ""):
+        return 400, {"error": "请粘贴 mp.weixin.qq.com 的文章链接"}
+    try:
+        page = article_page.fetch(link)
+        book_id_from_fakeid(page["biz"])
+    except (article_page.PageError, ValueError):
+        return 422, {"error": "没能从这篇文章读出公众号身份，请换一篇文章的链接"}
+    extra = WEREAD / "extra-accounts.json"
+    known = {a["fakeid"]: a["name"] for a in accounts.load(include_disabled=True, extra=extra)}
+    if page["biz"] in known:
+        return 200, {"exists": known[page["biz"]]}
+    try:
+        data = json.loads(extra.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        data = {"accounts": []}
+    name = page["nickname"] or "公众号 " + page["biz"][:8]
+    data["accounts"].append({"name": name, "fakeid": page["biz"], "unit": "", "tier": 1,
+                             "evidence": "登录维护页添加 " + datetime.now(TZ).strftime("%Y-%m-%d")})
+    private_json(extra, data)
+    return 200, {"added": name}
+
+
 def feed(days, limit):
     articles = Store(LIVE).public_articles(days=days, limit=limit) if (LIVE / "bitfeed.sqlite").exists() else []
     rows = [{k: a[k] for k in ("id", "title", "url", "source", "published_at")} for a in articles]
@@ -117,6 +143,9 @@ button{font:inherit;padding:7px 16px;border:0;border-radius:6px;background:#3370
 <section><h2>微信读书（订阅公众号文章）</h2><dl id="weread"></dl><button data-kind="weread">扫码登录微信读书</button><div class="qr" id="qr-weread"></div></section>
 <section><h2>公众号后台（搜号与核验）</h2><dl id="mp"></dl><button data-kind="mp">扫码登录公众号后台</button><div class="qr" id="qr-mp"></div>
 <p class="note">需要用对该公众号有管理权限的微信扫码。</p></section>
+<section><h2>添加订阅的公众号</h2><p class="note">在微信里打开该号任意一篇文章，复制链接粘贴到这里。</p>
+<input id="link" type="url" placeholder="https://mp.weixin.qq.com/s/..." style="width:100%;padding:7px;font:inherit;box-sizing:border-box;margin-bottom:8px">
+<button id="add">添加</button> <span id="added" class="note"></span></section>
 <p class="note">手机上打开本页时：截图二维码，再在微信“扫一扫”里从相册选图即可。</p></main><script>
 const base=location.pathname.replace(/\\/?$/,'/');const names={ok:'正常',authorized:'已登录',unknown:'未检查',auth_missing:'未登录',auth_expired:'已失效',ready:'请扫码',scanned:'已扫码，请在手机确认',expired:'二维码已过期',starting:'正在获取二维码',qr_expired_regenerating:'二维码已刷新',failed:'失败',verification_failed:'登录未通过校验',no_platform_account:'该微信没有可登录的公众号'};
 function row(dl,k,v){const t=document.createElement('dt');t.textContent=k;const d=document.createElement('dd');d.textContent=v??'—';d.style.margin=0;dl.append(t,d)}
@@ -128,6 +157,9 @@ async function refresh(){const s=await (await fetch(base+'status.json',{cache:'n
   else if(st&&box.dataset.started){box.innerHTML='<div class="'+(st==='authorized'?'ok':'bad')+'">'+(names[st]||st)+'</div>'}}}
 document.querySelectorAll('button[data-kind]').forEach(b=>b.onclick=async()=>{b.disabled=true;document.getElementById('qr-'+b.dataset.kind).dataset.started=1;
  await fetch(base+'login/'+b.dataset.kind,{method:'POST'});setTimeout(()=>b.disabled=false,20000)});
+document.getElementById('add').onclick=async()=>{const out=document.getElementById('added');out.textContent='正在读取…';
+ const r=await (await fetch(base+'accounts',{method:'POST',body:JSON.stringify({link:document.getElementById('link').value})})).json();
+ out.textContent=r.added?'已添加：'+r.added+'，几分钟内开始订阅':r.exists?'已在订阅中：'+r.exists:(r.error||'添加失败')};
 refresh();setInterval(refresh,3000);</script></body></html>"""
 
 
@@ -198,6 +230,13 @@ class Handler(BaseHTTPRequestHandler):
         sub = self._ops(parts.path)
         if sub in ("/login/weread", "/login/mp"):
             return self._send(200, {"started": start_login(sub[7:])})
+        if sub == "/accounts":
+            size = int(self.headers.get("Content-Length", "0") or 0)
+            try:
+                link = json.loads(self.rfile.read(size))["link"] if 0 < size <= 2000 else ""
+            except (ValueError, KeyError, TypeError):
+                link = ""
+            return self._send(*add_account(str(link).strip()))
         return self._send(404, {"error": "not found"})
 
     def _receipt(self):

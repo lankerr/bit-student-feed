@@ -162,7 +162,7 @@ class Worker:
             return summary
 
     def _subscribe(self, summary):
-        accounts = registry.load(self.registry_path)
+        accounts = registry.load(self.registry_path, extra=self.root / "extra-accounts.json")
         records = self.state["accounts"]
         now = self.clock()
         for account in accounts:

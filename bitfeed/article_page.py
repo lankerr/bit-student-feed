@@ -63,8 +63,12 @@ def parse(text):
     link = _js_string(text, "msg_link")
     if not body and not title:
         raise PageError("unrecognized")
+    biz = re.search(r"__biz=([A-Za-z0-9+/=]{8,40})", html.unescape(link)) or re.search(r'var\s+biz\s*=\s*"([A-Za-z0-9+/=]{8,40})"', text)
+    nickname = (re.search(r'nickname\s*=\s*htmlDecode\("([^"]{1,60})"\)', text) or re.search(r'var\s+nickname\s*=\s*"([^"]{1,60})"', text)
+                or re.search(r'id="js_name"[^>]*>\s*([^<]{1,60}?)\s*<', text))
     return {"body": body[:18000], "published_at": published, "title": html.unescape(title).strip()[:500],
-            "canonical": link.replace("http://", "https://", 1) if link.startswith("http://mp.weixin.qq.com/") else link}
+            "canonical": link.replace("http://", "https://", 1) if link.startswith("http://mp.weixin.qq.com/") else link,
+            "biz": biz.group(1) if biz else "", "nickname": html.unescape(nickname.group(1)).strip() if nickname else ""}
 
 
 def fetch(url, session=None, timeout=(10, 25)):
