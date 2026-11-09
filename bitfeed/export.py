@@ -1,5 +1,6 @@
 import html
 import json
+import os
 from datetime import datetime
 from email.utils import format_datetime
 from pathlib import Path
@@ -12,14 +13,29 @@ LABELS = {"academic":"学术讲座", "competition":"竞赛创新", "career":"升
           "volunteer":"实践志愿", "campus_service":"校园服务", "other":"其他"}
 
 
+def atomic_text(path, value):
+    stage=path.with_name('.'+path.name+'.next')
+    with stage.open('w',encoding='utf-8') as file:
+        file.write(value)
+        file.flush()
+        os.fsync(file.fileno())
+    os.replace(stage,path)
+
+
 def public_data(store):
     articles = store.public_articles(days=90)
     articles.sort(key=lambda a: (a["classification"]["score"] if a["classification"] else -1,
                                  a["published_at"]), reverse=True)
     metadata = store.metadata()
+    candidate_path = Path(__file__).parent.parent/"config"/"wechat-candidates.json"
+    registry = json.loads(candidate_path.read_text(encoding="utf-8")) if candidate_path.exists() else {}
+    candidates = registry.get("accounts",registry.get("candidates",[]))
     return {"schema_version":2, "generated_at":now_iso(),
         "collection": {k:v for k,v in metadata.items() if k in ("last_collection","source_refreshed_at")},
-        "coverage":"仅包含本人设备已同步并选定的公众号公开推送，以及已配置的官网来源。",
+        "coverage":"VPS 直接采集的公开官网栏目；公众号独立订阅正在核验，尚未承诺完整覆盖。",
+        "sources":json.loads(metadata.get("source_audit","[]")),
+        "wechat_registry":{"historical_candidates":len(candidates),"current_complete":False,
+                           "notice":"官方历史名录仅用于查漏，须逐号核验现行身份和列表权限。"},
         "classifier": {"configured":any(a["classification"] for a in articles),
                        "pending":sum(not a["classification"] for a in articles)},
         "schedule":{"site":"每日更新", "feishu":"周四、周日 12:00（北京时间），接收配置待完成"},
@@ -27,12 +43,16 @@ def public_data(store):
 
 
 def validate_public_data(data):
+    if set(data)-{"schema_version","generated_at","collection","coverage","sources","wechat_registry",
+                  "classifier","schedule","articles"}:
+        raise ValueError("unexpected top-level fields in public export")
     if data.get("schema_version") != 2 or not isinstance(data.get("articles"), list):
         raise ValueError("unsupported public export")
     if len(data["articles"]) > 10000:
         raise ValueError("public export too large")
     # The build accepts only known public fields and source domains.
-    allowed = {"id","title","url","source","published_at","kind","source_hash","model","date","classification"}
+    allowed = {"id","title","url","source","published_at","kind","source_hash","model","date","classification",
+               "origin","publication_status","body_status","source_expiry"}
     for a in data["articles"]:
         if set(a)-allowed:
             raise ValueError("unexpected fields in public article")
@@ -72,7 +92,7 @@ def rss(path, articles, title, base):
                     ("pubDate",format_datetime(datetime.fromtimestamp(a["published_at"],TZ))),
                     ("description",text + " 来源：" + a["source"])):
             ET.SubElement(item,k).text = str(v)
-    ET.ElementTree(root).write(path, encoding="utf-8",xml_declaration=True)
+    atomic_text(path,ET.tostring(root,encoding="unicode",xml_declaration=True))
 
 
 def build(data, destination, base_url="https://lankerr.github.io/bit-student-feed/"):
@@ -82,9 +102,12 @@ def build(data, destination, base_url="https://lankerr.github.io/bit-student-fee
     for name in ("index.html","app.js","style.css"):
         copyfile(Path(__file__).parent/"web"/name, dest/name)
     (dest/".nojekyll").write_text("",encoding="utf-8")
-    (dest/"data.json").write_text(json.dumps(data,ensure_ascii=False,indent=2),encoding="utf-8")
+    atomic_text(dest/"data.json",json.dumps(data,ensure_ascii=False,indent=2))
+    atomic_text(dest/"sources.json",json.dumps(data.get("sources",[]),ensure_ascii=False,indent=2))
+    candidate_path=Path(__file__).parent.parent/"config"/"wechat-candidates.json"
+    if candidate_path.exists():copyfile(candidate_path,dest/"wechat-candidates.json")
     report, active = guidance(data)
-    (dest/"daily.md").write_text(report,encoding="utf-8")
+    atomic_text(dest/"daily.md",report)
     rss(dest/"feed.xml", sorted(data["articles"],key=lambda a:a["published_at"],reverse=True), "北理新消息",base_url)
     rss(dest/"activities.xml", active,"北理可参加活动",base_url)
     return {"articles":len(data["articles"]),"verified_activities":len(active),"output":str(dest)}

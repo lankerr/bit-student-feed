@@ -8,14 +8,15 @@ Type=oneshot
 User=bitfeed
 Group=bitfeed
 WorkingDirectory=/opt/bitfeed-site
-Environment=BITFEED_DATA=/var/lib/bitfeed-site
+Environment=BITFEED_DATA=/var/lib/bitfeed-live
+Environment=BITFEED_WECHAT_AUTH=/var/lib/bitfeed-wechat/session.json
 EnvironmentFile=-/etc/bitfeed/runtime.env
-ExecStart=/opt/bitfeed-site/.venv/bin/python -m bitfeed daily --source http://127.0.0.1:18780/feed.json?days=90&limit=5000 --output /var/lib/bitfeed-pipeline/site
+ExecStart=/opt/bitfeed-site/.venv/bin/python -m bitfeed server-daily --output /var/lib/bitfeed-pipeline/site
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectHome=true
 ProtectSystem=strict
-ReadWritePaths=/var/lib/bitfeed-site /var/lib/bitfeed-pipeline/site
+ReadWritePaths=/var/lib/bitfeed-live /var/lib/bitfeed-wechat /var/lib/bitfeed-pipeline/site
 UMask=0027
 MemoryMax=256M
 TimeoutStartSec=1800

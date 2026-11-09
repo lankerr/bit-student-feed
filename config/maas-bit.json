@@ -1,0 +1,26 @@
+{
+  "confirmed_from_platform": true,
+  "url": "https://maas.bit.edu.cn/v1/chat/completions",
+  "model": "deepseek-v4-flash",
+  "headers": {
+    "Content-Type": "application/json",
+    "Authorization": "Bearer {{api_key}}"
+  },
+  "body": {
+    "model": "deepseek-v4-flash",
+    "messages": [{"role":"user", "content":"{{query}}"}],
+    "stream": false,
+    "temperature": 0.1,
+    "max_tokens": 6000
+  },
+  "response_path": "choices.0.message.content",
+  "response_models": {
+    "deepseek-v4-flash": ["deepseek-v4-flash", "deepseek-v4-flash-w8a8-mtp"],
+    "qwen3.8-flash-next": ["qwen3.8-flash-next"]
+  },
+  "fallback": {
+    "model": "qwen3.8-flash-next",
+    "after_failures": 3,
+    "max_requests_per_day": 2
+  }
+}

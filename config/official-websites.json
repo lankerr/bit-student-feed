@@ -1,0 +1,155 @@
+{
+  "schema_version": 1,
+  "sources": [
+    {
+      "id": "bit-tzgg",
+      "name": "北理工主页-通知公告",
+      "url": "https://www.bit.edu.cn/tzgg17/index.htm"
+    },
+    {
+      "id": "grd-tzgg",
+      "name": "研究生院-通知公告",
+      "url": "https://grd.bit.edu.cn/tzgg1/index.htm"
+    },
+    {
+      "id": "sae-xgdt",
+      "name": "宇航学院-学工动态",
+      "url": "http://sae.bit.edu.cn/xgtd/xgdt/index.htm"
+    },
+    {
+      "id": "smen-tzgg",
+      "name": "机电学院-通知公告",
+      "url": "http://smen.bit.edu.cn/xxfw/tzgg2023/index.htm"
+    },
+    {
+      "id": "smen-xsgz",
+      "name": "机电学院-学生工作",
+      "url": "http://smen.bit.edu.cn/xsgz/xgdt/index.htm"
+    },
+    {
+      "id": "me-xsgztz",
+      "name": "机械与车辆学院-学生工作通知",
+      "url": "http://me.bit.edu.cn/rcpy/xsgztz/index.htm"
+    },
+    {
+      "id": "opt-xsgz",
+      "name": "光电学院-学生工作",
+      "url": "http://opt.bit.edu.cn/zlxz/xsgzxz/index.htm"
+    },
+    {
+      "id": "cs-xgtz",
+      "name": "计算机学院-学工通知",
+      "url": "https://cs.bit.edu.cn/xsgz/xgtz/index.htm"
+    },
+    {
+      "id": "cs-tzgg",
+      "name": "计算机学院-通知公告",
+      "url": "https://cs.bit.edu.cn/tzgg/index.htm"
+    },
+    {
+      "id": "ice-tzgg",
+      "name": "集成电路与电子学院-通知公告",
+      "url": "https://ice.bit.edu.cn/xxfw/tzgg1/index.htm"
+    },
+    {
+      "id": "ice-xgdt",
+      "name": "集成电路与电子学院-学工动态",
+      "url": "https://ice.bit.edu.cn/xsgz/xgdt/index.htm"
+    },
+    {
+      "id": "cst-tzgg",
+      "name": "网络空间安全学院-通知公告",
+      "url": "https://cst.bit.edu.cn/xxfw/tzgg/index.htm"
+    },
+    {
+      "id": "cst-xgdt",
+      "name": "网络空间安全学院-学工动态",
+      "url": "https://cst.bit.edu.cn/xsgz/xgdt/index.htm"
+    },
+    {
+      "id": "mse-tzgg",
+      "name": "材料学院-通知公告",
+      "url": "https://mse.bit.edu.cn/tzgg/index.htm"
+    },
+    {
+      "id": "mse-xgdt",
+      "name": "材料学院-学工动态",
+      "url": "https://mse.bit.edu.cn/xsgz/xgdt/index.htm"
+    },
+    {
+      "id": "cce-txzz",
+      "name": "化学与化工学院-团学组织",
+      "url": "https://cce.bit.edu.cn/dqgz/txzz/index.htm"
+    },
+    {
+      "id": "ls-txgz",
+      "name": "生命学院-团学工作",
+      "url": "https://ls.bit.edu.cn/xsgz/txgz/index.htm"
+    },
+    {
+      "id": "math-tzgg",
+      "name": "数学与统计学院-通知公告",
+      "url": "https://math.bit.edu.cn/tzgg/index.htm"
+    },
+    {
+      "id": "math-xgdt",
+      "name": "数学与统计学院-学工动态",
+      "url": "https://math.bit.edu.cn/xsgz/xgdt/index.htm"
+    },
+    {
+      "id": "physics-tzgg",
+      "name": "物理学院-通知公告",
+      "url": "https://physics.bit.edu.cn/rcpy/tzgg5/index.htm"
+    },
+    {
+      "id": "se-tzgg",
+      "name": "人文与社会科学学院-通知公告",
+      "url": "https://se.bit.edu.cn/tzgg/index.htm"
+    },
+    {
+      "id": "sfl-tzgg",
+      "name": "外国语学院-通知公告",
+      "url": "https://sfl.bit.edu.cn/tzgg/index.htm"
+    },
+    {
+      "id": "sfl-xgdt",
+      "name": "外国语学院-学工动态",
+      "url": "https://sfl.bit.edu.cn/xsgz/xgdt/index.htm"
+    },
+    {
+      "id": "design-xzzq",
+      "name": "设计与艺术学院-学工动态",
+      "url": "https://design.bit.edu.cn/dqgz/xzzq/index.htm"
+    },
+    {
+      "id": "ac-tzgg",
+      "name": "自动化学院-通知公告",
+      "url": "https://ac.bit.edu.cn/tzgg/index.htm"
+    },
+    {
+      "id": "sie-zhtz",
+      "name": "信息与电子学院-综合通知",
+      "url": "https://sie.bit.edu.cn/tzgg/zhtz/index.htm"
+    },
+    {
+      "id": "som-tzgg",
+      "name": "管理与经济学院-通知公告",
+      "url": "https://som.bit.edu.cn/gbxwzx/tzgg/index.htm"
+    },
+    {
+      "id": "som-xsgz",
+      "name": "管理与经济学院-学生工作通知",
+      "url": "https://som.bit.edu.cn/xsgz/tzgg1/index.htm"
+    },
+    {
+      "id": "xuteli-tzgg",
+      "name": "徐特立学院-通知公告",
+      "url": "https://xuteli.bit.edu.cn/tzgg/index.htm"
+    },
+    {
+      "id": "student-tzgg",
+      "name": "学生服务中心-通知公告",
+      "url": "https://student.bit.edu.cn/tzgg/index.htm"
+    }
+  ]
+}

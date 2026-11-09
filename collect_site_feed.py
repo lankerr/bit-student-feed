@@ -20,9 +20,12 @@ def main():
     out.mkdir(exist_ok=True)
     (out / "site-feed.json").write_text(
         json.dumps(env, ensure_ascii=False, indent=1), encoding="utf-8")
-    print(json.dumps({"ok": True, "articles": len(env["articles"]),
+    print(json.dumps({"ok": not bool(env["errors"]),
+                      "state": "partial" if env["errors"] and env["articles"] else "failed" if env["errors"] else "ok",
+                      "articles": len(env["articles"]),
                       "errors": env["errors"]}, ensure_ascii=False))
 
 
 if __name__ == "__main__":
     main()
+

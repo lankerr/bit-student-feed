@@ -3,10 +3,11 @@
 
 来源两类（均无需任何登录/授权）：
 - boda : bit.edu.cn 站群静态列表页（20 个二级单位 32 个栏目）
-- sogou: 搜狗微信文章搜索，用账号名/关键词等效订阅公众号（免扫码）
+- sogou: 搜狗微信搜索索引，仅用于发现候选，不能证明公众号完整订阅
 
-输出与 collect_public_feed.py 相同的 schema_version=1 包络，
-kind 字段区分 site / mp-search，可直接并入同一 store 与发布流。
+此工具是并行开发保留的手动查漏入口，输出 schema_version=1 原始快照。
+搜狗临时链接、日期和账号归属须再次核验，不能直接作为生产订阅源。
+生产官网采集使用 websites.py，统一在 VPS SQLite 流水线中维护。
 """
 import json
 import re
@@ -162,3 +163,4 @@ def collect(cfg_path, log=print):
             "collected_at": datetime.now(timezone(timedelta(hours=8))).isoformat(timespec="seconds"),
             "source_refreshed_at": datetime.now(timezone(timedelta(hours=8))).isoformat(timespec="seconds"),
             "articles": uniq, "errors": errors}
+

@@ -1,0 +1,15 @@
+{
+  "confirmed_from_platform": true,
+  "transport": "hiagent",
+  "url": "https://agent.bit.edu.cn/api/proxy/api/v1/chat_query_v2",
+  "model": "DeepSeek-V4-Flash 正式版-260731 / 学生服务 v1.1.0",
+  "headers": {"Content-Type":"application/json", "Apikey":"{{api_key}}"},
+  "body": {
+    "UserID":"bitfeed-worker",
+    "AppConversationID":"{{conversation_id}}",
+    "Query":"{{query}}",
+    "ResponseMode":"streaming"
+  },
+  "response_path": "answer",
+  "_source": "https://agent.bit.edu.cn/platform/doc/api/agent-api-call/agent-api-documentation"
+}

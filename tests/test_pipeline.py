@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 import requests
 
-from bitfeed.classifier import classify
+from bitfeed.classifier import classify, hiagent_stream
 from bitfeed.domain import normalize_article, validate_classification
 from bitfeed.export import build, public_data
 from bitfeed.feishu import send
@@ -124,6 +124,77 @@ class PipelineTest(unittest.TestCase):
 
     def test_reject_untrusted_source(self):
         with self.assertRaises(ValueError):self.store.import_articles([source(url="https://evil.example/a")])
+
+    def test_unknown_publication_keeps_first_seen_across_runs(self):
+        original=source(origin="official_server",publication_status="unknown")
+        self.store.import_articles([original])
+        result=self.store.import_articles([{**original,"published_at":original["published_at"]+60}])
+        self.assertEqual(result["changed"],0)
+        a=self.store.public_articles()[0]
+        self.assertEqual(a["published_at"],original["published_at"])
+        self.assertEqual(a["publication_status"],"unknown")
+        self.assertEqual(a["origin"],"official_server")
+
+    def test_source_expired_history_does_not_consume_model_calls(self):
+        self.store.import_articles([source(source_event_end="2020-01-01 12:00:00")])
+        self.assertFalse(self.store.candidates())
+
+    def test_publication_date_and_contradictory_status_cannot_be_recommendations(self):
+        for status,body in (("title_and_publication_date","官网列表发布日期（非活动日期）：2099年12月1日"),
+                            ("structured_list_metadata","活动开始：2099年12月1日\n官网显示状态（须结合日期核对）：已结束")):
+            a=normalize_article(source(body=body,body_status=status))
+            c=validate_classification(answer(a,event_date="2099-12-01",event_date_evidence="2099年12月1日"),a)
+            self.assertFalse(c["verified_activity"])
+
+    def test_hiagent_uses_fresh_conversation_and_official_blocking_json(self):
+        self.store.import_articles([source()])
+        a=self.store.candidates()[0]
+        contract={"confirmed_from_platform":True,"transport":"hiagent",
+            "url":"https://agent.bit.edu.cn/api/proxy/api/v1/chat_query_v2",
+            "model":"published-v4", "headers":{"Apikey":"{{api_key}}"},
+            "body":{"UserID":"bitfeed-worker","AppConversationID":"{{conversation_id}}",
+                    "Query":"{{query}}","ResponseMode":"blocking"},"response_path":"answer"}
+        path=Path(self.tmp.name)/'hiagent.json';path.write_text(json.dumps(contract),encoding='utf-8')
+        class Response:
+            status_code=200
+            def __init__(inner,data):inner.data=data
+            def json(inner):return inner.data
+        class HTTP:
+            calls=[]
+            def post(inner,url,**kwargs):
+                inner.calls.append(url)
+                self.assertFalse(kwargs['allow_redirects'])
+                if url.endswith('/create_conversation'):
+                    return Response({'Conversation':{'AppConversationID':'fresh-conversation'},'BaseResp':None})
+                self.assertEqual(kwargs['json']['AppConversationID'],'fresh-conversation')
+                self.assertEqual(kwargs['json']['ResponseMode'],'blocking')
+                self.assertTrue(kwargs['json']['Query'].startswith('BITFEED_CLASSIFY_V1'))
+                self.assertNotIn('test-secret',json.dumps(kwargs['json']))
+                return Response({'answer':json.dumps({'items':[answer(a)]}),'total_tokens':100})
+        http=HTTP()
+        with patch.dict(os.environ,{"BIT_AGENT_API_KEY":"test-secret"}):
+            self.assertEqual(classify(self.store,path,http,max_batches=1)['classified'],1)
+        self.assertEqual(len(http.calls),2)
+
+    def test_stream_ignores_thoughts_and_rejects_incomplete_answers(self):
+        class Response:
+            closed=False
+            def __init__(inner,events):inner.events=events
+            def iter_lines(inner,**kwargs):
+                for e in inner.events:yield 'data: '+json.dumps(e,ensure_ascii=False)
+            def close(inner):inner.closed=True
+        response=Response([{'event':'message_start','id':'main'},
+            {'event':'think_message','answer':'不属于最终回答'},
+            {'event':'message','id':'child','answer':'不属于本批次'},
+            {'event':'message','id':'main','answer':'{"items":'},
+            {'event':'message','id':'main','answer':'[]}'}, {'event':'message_end'}])
+        self.assertEqual(hiagent_stream(response)['answer'],'{"items":[]}')
+        self.assertTrue(response.closed)
+        with self.assertRaises(RuntimeError):hiagent_stream(Response([{'event':'message','answer':'partial'}]))
+
+    def test_hallucinated_contact_does_not_enter_recommendation(self):
+        a=normalize_article(source())
+        with self.assertRaises(ValueError):validate_classification(answer(a,next_step='请拨打010-12345678报名。'),a)
 
 
 if __name__=="__main__":unittest.main()
