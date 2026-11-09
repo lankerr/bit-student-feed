@@ -1,0 +1,935 @@
+{
+  "schema_version": 1,
+  "state": "historical_pending",
+  "partial": false,
+  "coverage": "完整提取所引用2019年公开备案表中的微信记录，并补入5条已核实2024年资产系统公开记录及校级官号；不代表现行全校完整矩阵。",
+  "source_counts": {
+    "机关部处二级账号": 47,
+    "学院二级账号": 39
+  },
+  "verification": "historical_pending",
+  "enabled": false,
+  "notice": "仅供后续人工或获授权搜索核验；格式校验不证明账号仍在运行；不包含fakeid，默认不发平台请求。",
+  "accounts": [
+    {
+      "name": "北理工统战",
+      "unit": "党委统战部",
+      "wechat_id": "BIT-tzb",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "机关部处二级账号!E2:F2"
+    },
+    {
+      "name": "北理工平安校园",
+      "unit": "保卫部",
+      "wechat_id": "bitsafety",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "机关部处二级账号!E3:F3"
+    },
+    {
+      "name": "北京理工大学人事服务平台",
+      "unit": "党委教师工作部/人力资源部",
+      "wechat_id": "BIT-HR",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "机关部处二级账号!E4:F4"
+    },
+    {
+      "name": "北京理工大学学生工作部",
+      "unit": "学生工作部/党委武装部",
+      "wechat_id": "BIT-VsU",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "机关部处二级账号!E5:F5"
+    },
+    {
+      "name": "北京理工大学党委武装部",
+      "unit": "学生工作部/党委武装部",
+      "wechat_id": "bitwzb",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "机关部处二级账号!E6:F6"
+    },
+    {
+      "name": "北理工教务处",
+      "unit": "教务部",
+      "wechat_id": "BIT_JWC",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "机关部处二级账号!E9:F9"
+    },
+    {
+      "name": "北京理工大学招生办公室",
+      "unit": "教务部 / 招生办公室",
+      "wechat_id": "gh_8c6989a885e1",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "机关部处二级账号!E10:F10"
+    },
+    {
+      "name": "北京理工大学研究生招生",
+      "unit": "研究生院",
+      "wechat_id": "BIT_grad_yz",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "机关部处二级账号!E12:F12"
+    },
+    {
+      "name": "北京理工大研究生教育",
+      "unit": "研究生院",
+      "wechat_id": "BIT_grad_edu_cn",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "机关部处二级账号!E13:F13"
+    },
+    {
+      "name": "北京理工大学教育基金会",
+      "unit": "计划财务部 / 教育基金会工作办公室",
+      "wechat_id": "BITEF2010",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "机关部处二级账号!E15:F15"
+    },
+    {
+      "name": "北京理工大学招标采购管理中心",
+      "unit": "计划财务部 / 招标采购中心",
+      "wechat_id": "gh_6cd5e24482e6",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "机关部处二级账号!E17:F17"
+    },
+    {
+      "name": "北理工科协",
+      "unit": "科学技术研究院/军民融合创新研究院 / 科学技术协会",
+      "wechat_id": "AST-BIT",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "机关部处二级账号!E18:F18"
+    },
+    {
+      "name": "北京理工大学后勤集团",
+      "unit": "后勤基建处",
+      "wechat_id": "gh_ac7388702806",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "机关部处二级账号!E19:F19"
+    },
+    {
+      "name": "北京理工大学后勤集团学管中心",
+      "unit": "后勤基建处",
+      "wechat_id": "gh_68e9fb753723",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "机关部处二级账号!E20:F20"
+    },
+    {
+      "name": "北理工ASIC",
+      "unit": "国际交流合作处/港澳台办公室 / 学生国际交流协会",
+      "wechat_id": "BITASIC",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "机关部处二级账号!E21:F21"
+    },
+    {
+      "name": "北理工离退休",
+      "unit": "离退休工作处/离退休教职工党委",
+      "wechat_id": "bitltx",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "机关部处二级账号!E22:F22"
+    },
+    {
+      "name": "北京理工大学工会",
+      "unit": "校工会",
+      "wechat_id": "BIT-gonghui",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "机关部处二级账号!E23:F23"
+    },
+    {
+      "name": "躬行路",
+      "unit": "校团委",
+      "wechat_id": "",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "机关部处二级账号!E24:F24",
+      "invalid_identifier": true
+    },
+    {
+      "name": "BIT共学会",
+      "unit": "校团委",
+      "wechat_id": "BITgongxuehui",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "机关部处二级账号!E26:F26"
+    },
+    {
+      "name": "北京理工大学学生权益中心",
+      "unit": "校团委",
+      "wechat_id": "bitsuqyzx",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "机关部处二级账号!E28:F28"
+    },
+    {
+      "name": "BIT阳光服务队",
+      "unit": "校团委",
+      "wechat_id": "Sunshinebest1314",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "机关部处二级账号!E29:F29"
+    },
+    {
+      "name": "北京理工大学学生会",
+      "unit": "校团委",
+      "wechat_id": "BIT_SU",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "机关部处二级账号!E30:F30"
+    },
+    {
+      "name": "BitQingNian",
+      "unit": "机关党委",
+      "wechat_id": "Bitqingnian",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "机关部处二级账号!E32:F32"
+    },
+    {
+      "name": "北京理工大学图书馆",
+      "unit": "图书馆",
+      "wechat_id": "gh_9cd02ddb296d",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "机关部处二级账号!E33:F33"
+    },
+    {
+      "name": "北京理工大学教学促进与发展中心",
+      "unit": "教师发展中心",
+      "wechat_id": "cfd-bit",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "机关部处二级账号!E34:F34"
+    },
+    {
+      "name": "BIT-JSFZZX",
+      "unit": "教师发展中心",
+      "wechat_id": "gh_2c8c126280be",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "机关部处二级账号!E35:F35"
+    },
+    {
+      "name": "北理就业",
+      "unit": "学生就业指导中心",
+      "wechat_id": "bitjiuye",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "机关部处二级账号!E36:F36"
+    },
+    {
+      "name": "北理教学中心",
+      "unit": "教学运行与考务中心",
+      "wechat_id": "BIT-JXZX",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "机关部处二级账号!E37:F37"
+    },
+    {
+      "name": "留学北理WelcomeToBIT",
+      "unit": "留学生中心",
+      "wechat_id": "gh_471e27794e3d",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "机关部处二级账号!E38:F38"
+    },
+    {
+      "name": "留学北理 StudyInBIT",
+      "unit": "留学生中心",
+      "wechat_id": "gt_1251b3c03df5",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "机关部处二级账号!E39:F39"
+    },
+    {
+      "name": "北京理工大学技术转移中心",
+      "unit": "技术转移中心",
+      "wechat_id": "bitott",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "机关部处二级账号!E40:F40"
+    },
+    {
+      "name": "学位与研究生教育",
+      "unit": "学术期刊中心",
+      "wechat_id": "adge2015",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "机关部处二级账号!E41:F41"
+    },
+    {
+      "name": "深空探测",
+      "unit": "学术期刊中心",
+      "wechat_id": "gh_3924bc8a5524",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "机关部处二级账号!E43:F43"
+    },
+    {
+      "name": "北京理工大学校友会",
+      "unit": "校友会工作办公室",
+      "wechat_id": "BITalumni",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "机关部处二级账号!E44:F44"
+    },
+    {
+      "name": "北理人",
+      "unit": "校友会工作办公室",
+      "wechat_id": "gbitapp",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "机关部处二级账号!E45:F45"
+    },
+    {
+      "name": "北京理工大学出版社",
+      "unit": "资产经营有限公司/党委/纪委 / 出版社",
+      "wechat_id": "bitpress",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "机关部处二级账号!E49:F49",
+      "additional_sources": [
+        {
+          "source_url": "https://asset.bit.edu.cn/docs/2024-06/8d790ec00290462799e12859039241b1.pdf",
+          "source_year": 2024,
+          "source_locator": "第1页账号名称/账号ID列"
+        }
+      ]
+    },
+    {
+      "name": "理工高教",
+      "unit": "资产经营有限公司/党委/纪委 / 出版社",
+      "wechat_id": "bitp-lggj",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "机关部处二级账号!E50:F50"
+    },
+    {
+      "name": "理工职教",
+      "unit": "资产经营有限公司/党委/纪委 / 出版社",
+      "wechat_id": "bitp-lgzj",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "机关部处二级账号!E51:F51"
+    },
+    {
+      "name": "我识",
+      "unit": "资产经营有限公司/党委/纪委 / 出版社",
+      "wechat_id": "woshiwaiyu",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "机关部处二级账号!E52:F52"
+    },
+    {
+      "name": "萌学堂",
+      "unit": "资产经营有限公司/党委/纪委 / 出版社",
+      "wechat_id": "meng-xuetang",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "机关部处二级账号!E53:F53"
+    },
+    {
+      "name": "达理知书",
+      "unit": "资产经营有限公司/党委/纪委 / 出版社",
+      "wechat_id": "bitpzhishu",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "机关部处二级账号!E54:F54"
+    },
+    {
+      "name": "北理工专利中心",
+      "unit": "资产经营有限公司/党委/纪委 / 北京理工大学专利中心",
+      "wechat_id": "gh_f8ad8a77aabd",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "机关部处二级账号!E55:F55"
+    },
+    {
+      "name": "北京理工大学国际教育学院",
+      "unit": "国际教育学院",
+      "wechat_id": "BITSICE",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "机关部处二级账号!E56:F56"
+    },
+    {
+      "name": "北京理工大学远程教育学院",
+      "unit": "继续教育学院/党总支/远程教育学院",
+      "wechat_id": "bitsde-fw",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "机关部处二级账号!E60:F60"
+    },
+    {
+      "name": "北京理工大学秦皇岛分校",
+      "unit": "秦皇岛分校/直属党总支",
+      "wechat_id": "BITQFX",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "机关部处二级账号!E61:F61"
+    },
+    {
+      "name": "北理工前沿交叉科学研究院",
+      "unit": "前沿交叉科学研究院",
+      "wechat_id": "bit-arims",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "机关部处二级账号!E62:F62"
+    },
+    {
+      "name": "北理国防生",
+      "unit": "中国人民解放军驻北京理工大学选培办",
+      "wechat_id": "bifgfs",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "机关部处二级账号!E63:F63"
+    },
+    {
+      "name": "北京理工大学宇航学院团委",
+      "unit": "宇航学院",
+      "wechat_id": "yhxytw",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "学院二级账号!E2:F2"
+    },
+    {
+      "name": "BIT宇航小新",
+      "unit": "宇航学院",
+      "wechat_id": "BIT-ANC",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "学院二级账号!E3:F3"
+    },
+    {
+      "name": "BIT宇航科协",
+      "unit": "宇航学院",
+      "wechat_id": "BITyhkx",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "学院二级账号!E4:F4"
+    },
+    {
+      "name": "北理工航模队",
+      "unit": "宇航学院",
+      "wechat_id": "bitmodeling",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "学院二级账号!E5:F5"
+    },
+    {
+      "name": "BIT宇航学生会",
+      "unit": "宇航学院",
+      "wechat_id": "BITyhxsh",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "学院二级账号!E6:F6"
+    },
+    {
+      "name": "14级飞行器设计卓越班",
+      "unit": "宇航学院",
+      "wechat_id": "BITAAE_EX2014",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "学院二级账号!E7:F7"
+    },
+    {
+      "name": "01231401班团支部",
+      "unit": "宇航学院",
+      "wechat_id": "WS01231401",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "学院二级账号!E8:F8"
+    },
+    {
+      "name": "BIT工力2013",
+      "unit": "宇航学院",
+      "wechat_id": "BITgongliyi20143",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "学院二级账号!E9:F9"
+    },
+    {
+      "name": "北理13级飞设1班团支部",
+      "unit": "宇航学院",
+      "wechat_id": "bit01111301",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "学院二级账号!E10:F10"
+    },
+    {
+      "name": "飞动嘟嘟嘟",
+      "unit": "宇航学院",
+      "wechat_id": "BIT01211401",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "学院二级账号!E11:F11"
+    },
+    {
+      "name": "推进乌托邦",
+      "unit": "宇航学院",
+      "wechat_id": "BIT_JPL",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "学院二级账号!E12:F12"
+    },
+    {
+      "name": "宇航学院马列主义学习会",
+      "unit": "宇航学院",
+      "wechat_id": "yhxymlzyxxh",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "学院二级账号!E13:F13"
+    },
+    {
+      "name": "北理工机电新青年",
+      "unit": "机电学院",
+      "wechat_id": "jdxinqingnian",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "学院二级账号!E14:F14"
+    },
+    {
+      "name": "北京理工大学机械与车辆学院",
+      "unit": "机械与车辆学院",
+      "wechat_id": "gh_99beca519ac5",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "学院二级账号!E15:F15"
+    },
+    {
+      "name": "bit光电人",
+      "unit": "光电学院",
+      "wechat_id": "bitguangdian",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "学院二级账号!E18:F18"
+    },
+    {
+      "name": "北京理工大学信息与电子学院",
+      "unit": "信息与电子学院",
+      "wechat_id": "bitxxxy",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "学院二级账号!E19:F19"
+    },
+    {
+      "name": "BIT信息",
+      "unit": "信息与电子学院",
+      "wechat_id": "Bitxinxin",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "学院二级账号!E20:F20"
+    },
+    {
+      "name": "自控青春",
+      "unit": "自动化学院",
+      "wechat_id": "gh_4f6474384b73",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "学院二级账号!E21:F21"
+    },
+    {
+      "name": "北理工自动化",
+      "unit": "自动化学院",
+      "wechat_id": "bitautomation",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "学院二级账号!E23:F23"
+    },
+    {
+      "name": "北理机器人队",
+      "unit": "自动化学院",
+      "wechat_id": "bitlx_roboteam2018",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "学院二级账号!E25:F25"
+    },
+    {
+      "name": "北京理工大学计算机学院",
+      "unit": "计算机学院",
+      "wechat_id": "cs-bit",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "学院二级账号!E26:F26"
+    },
+    {
+      "name": "鸿材书院",
+      "unit": "材料学院",
+      "wechat_id": "gh_adedeec3f486",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "学院二级账号!E27:F27"
+    },
+    {
+      "name": "北理化院",
+      "unit": "化学与化工学院",
+      "wechat_id": "BIThuaxue",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "学院二级账号!E29:F29"
+    },
+    {
+      "name": "BIT生命领航",
+      "unit": "生命学院",
+      "wechat_id": "bitsmlh",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "学院二级账号!E30:F30"
+    },
+    {
+      "name": "北理数院",
+      "unit": "数学与统计学院",
+      "wechat_id": "BIT-Math",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "学院二级账号!E31:F31"
+    },
+    {
+      "name": "4evertwo",
+      "unit": "数学与统计学院",
+      "wechat_id": "",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "学院二级账号!E32:F32",
+      "invalid_identifier": true
+    },
+    {
+      "name": "BIT物院圈",
+      "unit": "物理学院",
+      "wechat_id": "BIT_wyq",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "学院二级账号!E33:F33"
+    },
+    {
+      "name": "北理行走荒原社区",
+      "unit": "物理学院",
+      "wechat_id": "bit_huangyuan",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "学院二级账号!E34:F34"
+    },
+    {
+      "name": "BITEPA",
+      "unit": "物理学院",
+      "wechat_id": "gh_bcd2de700e66",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "学院二级账号!E35:F35"
+    },
+    {
+      "name": "北理工经管书院",
+      "unit": "管理与经济学院 / 经管书院新媒体中心",
+      "wechat_id": "gh_01132034bf79",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "学院二级账号!E36:F36"
+    },
+    {
+      "name": "北理工管院校友会",
+      "unit": "管理与经济学院",
+      "wechat_id": "gh_0c76ab98c53b",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "学院二级账号!E37:F37"
+    },
+    {
+      "name": "北京理工大学管院专业学位中心",
+      "unit": "管理与经济学院 / 管理与经济学院专业学位教育联合中心",
+      "wechat_id": "BIT-PDC",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "学院二级账号!E39:F39"
+    },
+    {
+      "name": "人兴家国文行天下",
+      "unit": "人文与社会科学学院",
+      "wechat_id": "bitrw2013",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "学院二级账号!E41:F41"
+    },
+    {
+      "name": "北理马院",
+      "unit": "马克思主义学院",
+      "wechat_id": "",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "学院二级账号!E42:F42",
+      "invalid_identifier": true
+    },
+    {
+      "name": "壮哉我大北理",
+      "unit": "马克思主义学院",
+      "wechat_id": "wodabit",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "学院二级账号!E43:F43"
+    },
+    {
+      "name": "北京理工大学法学院",
+      "unit": "法学院",
+      "wechat_id": "bit_zhangling",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "学院二级账号!E44:F44"
+    },
+    {
+      "name": "BITLAWSU",
+      "unit": "法学院",
+      "wechat_id": "BITLAWSU",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "学院二级账号!E45:F45"
+    },
+    {
+      "name": "北理工外国语学院",
+      "unit": "外国语学院",
+      "wechat_id": "bitwaiyuan",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "学院二级账号!E46:F46"
+    },
+    {
+      "name": "北理设计",
+      "unit": "艺术与设计学院",
+      "wechat_id": "gh_85e4ad3f1e5b",
+      "source_url": "https://bit.edu.cn/docs/2019-07/20190711040006229480.xlsx",
+      "source_year": 2019,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "学院二级账号!E47:F47"
+    },
+    {
+      "name": "北理微后勤",
+      "unit": "物业管理与后勤服务公司",
+      "wechat_id": "BIT-HQ",
+      "source_url": "https://asset.bit.edu.cn/docs/2024-06/8d790ec00290462799e12859039241b1.pdf",
+      "source_year": 2024,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "第1页账号名称/账号ID列"
+    },
+    {
+      "name": "北京理工科技园",
+      "unit": "北京理工科技园科技发展有限公司",
+      "wechat_id": "gh_cda9087ee775",
+      "source_url": "https://asset.bit.edu.cn/docs/2024-06/8d790ec00290462799e12859039241b1.pdf",
+      "source_year": 2024,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "第1页账号名称/账号ID列"
+    },
+    {
+      "name": "北理工创新孵化器",
+      "unit": "北京理工科技园科技发展有限公司",
+      "wechat_id": "gh_96b4f3c1d1d9",
+      "source_url": "https://asset.bit.edu.cn/docs/2024-06/8d790ec00290462799e12859039241b1.pdf",
+      "source_year": 2024,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "第1页账号名称/账号ID列"
+    },
+    {
+      "name": "北理工孵化器",
+      "unit": "北京理工科技园科技发展有限公司",
+      "wechat_id": "gh_467d16227bd5",
+      "source_url": "https://asset.bit.edu.cn/docs/2024-06/8d790ec00290462799e12859039241b1.pdf",
+      "source_year": 2024,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "第1页账号名称/账号ID列"
+    },
+    {
+      "name": "北京理工大学",
+      "unit": "北京理工大学党委宣传部",
+      "wechat_id": "BIT_1940",
+      "source_url": "https://www.bit.edu.cn/yxw/gfxmt/a156772.htm",
+      "source_year": 2018,
+      "verification": "historical_pending",
+      "enabled": false,
+      "source_locator": "官方新媒体介绍：微信号BIT_1940；发表2018-07-05"
+    }
+  ]
+}

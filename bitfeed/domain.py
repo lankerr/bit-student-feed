@@ -56,19 +56,28 @@ def normalize_article(item):
     digest = str(item.get("digest") or "")[:1000]
     source = str(item.get("source") or item.get("group") or "未注明来源")[:120]
     source_hash = hashlib.sha256(json.dumps([title, published, body, digest], ensure_ascii=False).encode()).hexdigest()
+    expiry = item.get("source_event_end") or item.get("source_application_deadline") or ""
+    try:
+        source_expiry = int(datetime.fromisoformat(expiry).replace(tzinfo=TZ).timestamp()) if expiry else 0
+    except (ValueError, TypeError):
+        source_expiry = int(item.get("source_expiry") or 0)
     return {"id": article_id(url), "title": title, "url": url, "source": source,
         "published_at": published, "kind": item.get("kind", "wechat"), "body": body,
         "digest": digest, "source_hash": source_hash,
+        "origin": str(item.get("origin") or "unknown")[:40],
+        "publication_status": "unknown" if item.get("publication_status") == "unknown" else "known",
+        "source_expiry": source_expiry,
         "body_status": item.get("body_status", "available" if body else "not_fetched")}
 
 
 def clean_model_json(value):
     if isinstance(value, dict):
-        return value
-    value = str(value).strip()
-    if value.startswith("```"):
-        value = re.sub(r"^```(?:json)?\s*|\s*```$", "", value)
-    parsed = json.loads(value)
+        parsed = value
+    else:
+        value = str(value).strip()
+        if value.startswith("```"):
+            value = re.sub(r"^```(?:json)?\s*|\s*```$", "", value)
+        parsed = json.loads(value)
     if not isinstance(parsed, dict) or not isinstance(parsed.get("items"), list):
         raise ValueError("classifier must return an object with items")
     return parsed
@@ -104,6 +113,11 @@ def validate_classification(raw, article):
     if isinstance(confidence, bool) or not isinstance(confidence, (int, float)) or not 0 <= confidence <= 1:
         raise ValueError("confidence must be 0..1")
     source = "\n".join([article["title"], article["digest"], article["body"]])
+    for field in ("summary","next_step","reason"):
+        statement=str(raw.get(field) or "")
+        contacts=re.findall(r"https?://[^\s<>]+|[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}|(?<!\d)1[3-9]\d{9}(?!\d)|(?<!\d)0\d{2,3}[-－ ]?\d{7,8}(?!\d)",statement)
+        if any(contact not in source and contact != article["url"] for contact in contacts):
+            raise ValueError("model added a contact/link absent from the source")
     deadline = _verified_day(raw.get("deadline"), raw.get("deadline_evidence"), source)
     event_date = _verified_day(raw.get("event_date"), raw.get("event_date_evidence"), source)
     state = raw["event_status"]
@@ -113,6 +127,9 @@ def validate_classification(raw, article):
     elif (deadline and deadline < today) or (event_date and event_date < today):
         state, score = "expired", min(score, 10)
     elif state == "actionable" and (not (deadline or event_date) or confidence < .8):
+        state, score = "needs_verification", min(score, 40)
+    if state == "actionable" and (article["body_status"] in {"title_and_publication_date", "not_fetched"} or
+            re.search(r"官网显示状态[^\n]*[：:][^\n]*(已结束|已取消|已过期)", source)):
         state, score = "needs_verification", min(score, 40)
     verified = state == "actionable" and bool(deadline or event_date) and confidence >= .8
     return {"article_id": article["id"], "source_hash": article["source_hash"],

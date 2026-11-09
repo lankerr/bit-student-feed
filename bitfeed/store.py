@@ -34,6 +34,12 @@ class Store:
                 PRIMARY KEY(target_hash,article_id));
             CREATE INDEX IF NOT EXISTS article_time ON articles(published_at);
             ''')
+            existing = {row[1] for row in conn.execute("PRAGMA table_info(articles)")}
+            for name, definition in (("origin", "TEXT DEFAULT 'unknown'"),
+                                     ("publication_status", "TEXT DEFAULT 'known'"),
+                                     ("source_expiry", "INTEGER DEFAULT 0")):
+                if name not in existing:
+                    conn.execute(f"ALTER TABLE articles ADD COLUMN {name} {definition}")
 
     @contextmanager
     def connection(self):
@@ -51,17 +57,20 @@ class Store:
         with self.connection() as conn:
             for item in normalized:
                 old = conn.execute("SELECT * FROM articles WHERE id=?", (item["id"],)).fetchone()
+                if old and item["publication_status"] == "unknown":
+                    item = normalize_article({**item,"published_at":old["published_at"]})
                 if old and not item["body"] and old["body"]:
                     item = normalize_article({**item, "body": old["body"],
                         "digest": item["digest"] or old["digest"], "body_status": old["body_status"]})
                 added += old is None
                 changed += old is not None and old["source_hash"] != item["source_hash"]
-                conn.execute('''INSERT INTO articles VALUES(
-                    :id,:title,:url,:source,:published_at,:first_seen,:kind,:body,:digest,:source_hash,:body_status)
+                conn.execute('''INSERT INTO articles(id,title,url,source,published_at,first_seen,kind,body,digest,source_hash,body_status,origin,publication_status,source_expiry) VALUES(
+                    :id,:title,:url,:source,:published_at,:first_seen,:kind,:body,:digest,:source_hash,:body_status,:origin,:publication_status,:source_expiry)
                     ON CONFLICT(id) DO UPDATE SET title=excluded.title,url=excluded.url,
                     source=excluded.source,published_at=excluded.published_at,kind=excluded.kind,
                     body=excluded.body,
-                    digest=excluded.digest,source_hash=excluded.source_hash,body_status=excluded.body_status''',
+                    digest=excluded.digest,source_hash=excluded.source_hash,body_status=excluded.body_status,
+                    origin=excluded.origin,publication_status=excluded.publication_status,source_expiry=excluded.source_expiry''',
                     {**item, "first_seen": int(time.time())})
             for key, value in (("last_collection", checked_at or now_iso()),
                                ("source_refreshed_at", refreshed_at or checked_at or now_iso())):
@@ -71,9 +80,9 @@ class Store:
     def candidates(self, limit=20, days=30):
         with self.connection() as conn:
             rows = conn.execute('''SELECT a.* FROM articles a LEFT JOIN classifications c
-                ON c.article_id=a.id WHERE a.published_at>=? AND
+                ON c.article_id=a.id WHERE a.published_at>=? AND (a.source_expiry=0 OR a.source_expiry>=?) AND
                 (c.article_id IS NULL OR c.source_hash!=a.source_hash OR c.prompt_version!=?)
-                ORDER BY a.published_at DESC LIMIT ?''', (int(time.time())-days*86400, PROMPT_VERSION, limit)).fetchall()
+                ORDER BY a.published_at DESC LIMIT ?''', (int(time.time())-days*86400, int(time.time()), PROMPT_VERSION, limit)).fetchall()
         return [dict(row) for row in rows]
 
     def apply_classifications(self, data, model, expected=None):
@@ -102,7 +111,8 @@ class Store:
     def public_articles(self, days=30, limit=5000):
         with self.connection() as conn:
             rows = conn.execute('''SELECT a.id,a.title,a.url,a.source,a.published_at,a.kind,
-                a.source_hash,c.payload,c.model,c.source_hash AS classified_source_hash
+                a.source_hash,a.origin,a.publication_status,a.body_status,a.source_expiry,
+                c.payload,c.model,c.source_hash AS classified_source_hash
                 FROM articles a LEFT JOIN classifications c ON c.article_id=a.id
                 WHERE a.published_at>=? ORDER BY a.published_at DESC LIMIT ?''',
                 (int(time.time())-days*86400, limit)).fetchall()
@@ -130,9 +140,9 @@ class Store:
             conn.execute("INSERT INTO jobs(kind,started_at,state,detail) VALUES(?,?,?,?)",
                          (kind, now_iso(), state, str(detail)[:1000]))
 
-    def reserve_call(self, daily_limit):
+    def reserve_call(self, daily_limit, budget="model_calls"):
         today = datetime.now(TZ).strftime("%Y-%m-%d")
-        key = "model_calls:" + today
+        key = budget + ":" + today
         with self.connection() as conn:
             conn.execute("BEGIN IMMEDIATE")
             row = conn.execute("SELECT value FROM meta WHERE key=?", (key,)).fetchone()
@@ -141,3 +151,15 @@ class Store:
                 raise ValueError("daily model request budget reached")
             conn.execute("INSERT OR REPLACE INTO meta VALUES(?,?)", (key, str(count + 1)))
         return count + 1
+
+    def set_meta(self, key, value):
+        with self.connection() as conn:
+            conn.execute("INSERT OR REPLACE INTO meta VALUES(?,?)", (key, str(value)))
+
+    def set_source_audit(self, audits):
+        previous = {a.get("id"):a for a in json.loads(self.metadata().get("source_audit","[]"))}
+        for a in audits:
+            old = previous.get(a.get("id"),{})
+            a["last_successful_at"] = (a.get("checked_at") if a.get("pages",0)>0 and
+                a.get("state") in {"ok","partial","empty"} else old.get("last_successful_at"))
+        self.set_meta("source_audit",json.dumps(audits,ensure_ascii=False))
