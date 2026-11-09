@@ -43,6 +43,10 @@ def today():
     return datetime.now(TZ).strftime("%Y-%m-%d")
 
 
+class Busy(RuntimeError):
+    """Another run holds the lock; the timer simply tries again later."""
+
+
 @contextmanager
 def exclusive(path):
     handle = open(path, "a+")
@@ -55,7 +59,7 @@ def exclusive(path):
             try:
                 fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
             except OSError:
-                raise RuntimeError("another subscription run is active") from None
+                raise Busy("another subscription run is active") from None
         yield
     finally:
         handle.close()
@@ -136,6 +140,12 @@ class Worker:
     # ---------- run ----------
     def run(self, calls=CALLS_PER_RUN, bodies=BODIES_PER_RUN, follows=FOLLOWS_PER_RUN):
         self.root.mkdir(parents=True, exist_ok=True)
+        try:
+            return self._run_locked(calls, bodies, follows)
+        except Busy:
+            return {"new": 0, "checked": 0, "followed": 0, "bodies": 0, "stopped": "busy"}
+
+    def _run_locked(self, calls, bodies, follows):
         with exclusive(self.root / ".scheduler.lock"):
             self.state = self._load_state()
             self.calls_left = calls
