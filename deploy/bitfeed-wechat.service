@@ -1,0 +1,22 @@
+[Unit]
+Description=BIT feed: paced WeRead subscription run and article bodies
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=bitfeed
+Group=bitfeed
+WorkingDirectory=/opt/bitfeed-site
+Environment=BITFEED_DATA=/var/lib/bitfeed-live
+Environment=BITFEED_WEREAD_DIR=/var/lib/bitfeed-weread
+EnvironmentFile=-/etc/bitfeed/runtime.env
+ExecStart=/opt/bitfeed-site/.venv/bin/python -m bitfeed wechat-sync
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/bitfeed-live /var/lib/bitfeed-weread
+UMask=0077
+MemoryMax=192M
+TimeoutStartSec=900

@@ -2,7 +2,7 @@
 const $ = id => document.getElementById(id);
 const labels={academic:'学术讲座',competition:'竞赛创新',career:'升学就业',volunteer:'实践志愿',campus_service:'校园服务',other:'其他'};
 const states={actionable:'可参加',needs_verification:'待核验',expired:'已结束',recap:'活动回顾',not_event:'资讯通知'};
-const sourceStates={ok:'正常',partial:'部分完成',failed:'采集失败',empty:'未取到消息',not_configured:'未配置',unconfigured:'未配置',pending_configuration:'未配置',disabled:'未启用',pending:'待检查',rate_limited:'频控冷却',auth_expired:'授权已过期',auth_missing:'未授权',blocked:'验证受阻'};
+const sourceStates={ok:'正常',partial:'部分完成',failed:'采集失败',empty:'未取到消息',not_configured:'未配置',unconfigured:'未配置',pending_configuration:'未配置',disabled:'未启用',pending:'待检查',rate_limited:'频控冷却',auth_expired:'授权已过期',auth_missing:'未授权',blocked:'验证受阻',pending_follow:'待关注',follow_failed:'关注失败'};
 const unconfigured=s=>['not_configured','unconfigured','pending_configuration'].includes(s.state)||s.configured===false;
 let articles=[], scope='all', shown=30;
 const today=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
@@ -22,6 +22,7 @@ function sourceBoundary(s){
   if(s.state==='auth_expired'||s.state==='auth_missing')return '需要服务器端扫码授权';
   if(s.error||s.state==='failed')return '本轮未完成，历史收录继续保留';
   if(s.truncated)return s.pagination_status==='cap_reached'?'已到分页上限，仍有未查页':'本轮分页未完成';
+  if(s.scope==='weread_latest')return '经微信读书订阅，每次只看到最新一篇；多图文的第二篇及以后可能遗漏';
   if(s.scope==='observed_list_pages')return s.complete?'已检查可见分页，不代表全历史':'仅检查已开放的列表范围';
   if(s.complete&&typeof s.count==='number'&&s.fetched===s.count)return '本轮数量与源端报告一致';
   if(s.complete)return '本轮分页检查完成，范围以来源为准';
@@ -33,7 +34,7 @@ function renderSources(data){
   $('source-rows').replaceChildren();
   if(!sources.length){const row=el('tr'),cell=el('td','尚未提供来源核对清单，当前无法确认覆盖范围。');cell.colSpan=6;row.append(cell);$('source-rows').append(row);$('source-summary').textContent='来源范围待核对';return sources;}
   const missing=sources.filter(unconfigured).length;
-  const attention=sources.filter(s=>!unconfigured(s)&&(s.error||s.truncated||['failed','partial','empty','rate_limited','auth_expired','auth_missing','blocked'].includes(s.state))).length;
+  const attention=sources.filter(s=>!unconfigured(s)&&(s.error||s.truncated||['failed','partial','empty','rate_limited','auth_expired','auth_missing','blocked','follow_failed'].includes(s.state))).length;
   $('source-summary').textContent='已配置 '+(sources.length-missing)+' 项 · 待处理 '+attention+' 项 · 未配置 '+missing+' 项';
   for(const s of sources){
     const row=el('tr'),name=el('th',s.name||s.source||s.id||'未命名来源');name.scope='row';

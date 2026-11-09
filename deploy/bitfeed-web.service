@@ -1,0 +1,29 @@
+[Unit]
+Description=BIT feed: public export endpoint and login maintenance page
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=bitfeed
+Group=bitfeed
+WorkingDirectory=/opt/bitfeed-site
+Environment=BITFEED_DATA=/var/lib/bitfeed-live
+Environment=BITFEED_WEREAD_DIR=/var/lib/bitfeed-weread
+Environment=BITFEED_WECHAT_DIR=/var/lib/bitfeed-wechat
+Environment=BITFEED_SITE_DIR=/var/lib/bitfeed-pipeline/site
+EnvironmentFile=-/etc/bitfeed/runtime.env
+ExecStart=/opt/bitfeed-site/.venv/bin/python -m bitfeed.ops_server --host 0.0.0.0 --port 18780
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/bitfeed-pipeline /var/lib/bitfeed-weread /var/lib/bitfeed-wechat
+UMask=0077
+MemoryMax=256M
+TasksMax=64
+
+[Install]
+WantedBy=multi-user.target

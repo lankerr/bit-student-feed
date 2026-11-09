@@ -7,7 +7,7 @@ name = "bit-student-feed"
 version = "0.2.0"
 description = "Campus news collection, evidence-bounded AI ranking, RSS and daily guidance"
 requires-python = ">=3.11"
-dependencies = ["requests>=2.32,<3", "beautifulsoup4>=4.12,<5"]
+dependencies = ["requests>=2.32,<3", "beautifulsoup4>=4.12,<5", "qrcode>=7.4,<9", "pypng>=0.20220715"]
 
 [project.optional-dependencies]
 discovery = ["PyYAML>=6,<7"]

@@ -91,7 +91,15 @@ def login(directory,wait_seconds=300,session=None):
             if accounts.get('base_resp',{}).get('ret') != 0 or not available:
                 status('no_platform_account',reason='scan completed but no accessible public-platform account');return False
             cookies=[{'name':c.name,'value':c.value,'domain':c.domain,'path':c.path,'expires':c.expires} for c in http.cookies]
-            private_json(root/'session.json',{'token':token,'fingerprint':fingerprint,'cookies':cookies,'saved_at':int(time.time())})
+            private_json(root/'session.json',{'token':token,'fingerprint':fingerprint,'cookies':cookies,
+                'saved_at':int(time.time()),'user_agent':http.headers['User-Agent']})
+            expiry=[int(c['expires']) for c in cookies if c['name'] in ('slave_sid','slave_user','data_ticket','bizuin') and c['expires']]
+            private_json(root/'keepalive.json',{'state':'ok','checked_at':int(time.time()),'expires_at':min(expiry) if expiry else None})
+            try:
+                if json.loads((root/'cooldown.json').read_text(encoding='utf-8')).get('state')=='auth_expired':
+                    (root/'cooldown.json').unlink()
+            except (OSError,ValueError):
+                pass
             status('authorized',account_count=len(available))
             return True
         status('expired');return False

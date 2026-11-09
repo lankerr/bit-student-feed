@@ -1,0 +1,11 @@
+[Unit]
+Description=Classify and re-export the BIT feed every 2 hours and before each digest
+
+[Timer]
+OnCalendar=*-*-* 00/2:15:00 UTC
+OnCalendar=Thu,Sun *-*-* 03:40:00 UTC
+Persistent=true
+Unit=bitfeed-refresh.service
+
+[Install]
+WantedBy=timers.target

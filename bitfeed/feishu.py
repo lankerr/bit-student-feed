@@ -12,16 +12,33 @@ import requests
 from .domain import now_iso
 
 
-def send(store, markdown, article_ids, mode="test", session=None):
+def _webhook(prefix):
+    webhook = os.getenv(prefix + "_WEBHOOK", "")
+    parts = urlsplit(webhook)
+    if parts.scheme!="https" or parts.hostname!="open.feishu.cn" or not parts.path.startswith("/open-apis/bot/v2/hook/") or parts.query or parts.fragment or parts.username or parts.password or parts.port not in (None,443):
+        raise ValueError("configure an official Feishu custom-bot webhook")
+    return webhook
+
+
+def _card(title, markdown, template="blue"):
+    return {"msg_type":"interactive","card":{"schema":"2.0","header":{"template":template,"title":{"tag":"plain_text","content":title}},"body":{"elements":[{"tag":"markdown","content":markdown[:12000]}]}}}
+
+
+def _sign(payload, prefix):
+    secret=os.getenv(prefix+"_SIGNING_SECRET","")
+    if secret:
+        stamp=str(int(time.time()))
+        payload.update(timestamp=stamp,sign=base64.b64encode(hmac.new((stamp+"\n"+secret).encode(),b"",hashlib.sha256).digest()).decode())
+    return payload
+
+
+def send(store, markdown, article_ids, mode="test", session=None, title=None):
     if mode not in ("test","production"):
         raise ValueError("invalid delivery mode")
     if mode=="production" and os.getenv("BITFEED_PRODUCTION_SEND","false").lower()!="true":
         raise ValueError("production delivery is disabled")
     prefix="FEISHU_TEST" if mode=="test" else "FEISHU_PRODUCTION"
-    webhook=os.getenv(prefix+"_WEBHOOK","")
-    parts=urlsplit(webhook)
-    if parts.scheme!="https" or parts.hostname!="open.feishu.cn" or not parts.path.startswith("/open-apis/bot/v2/hook/") or parts.query or parts.fragment or parts.username or parts.password or parts.port not in (None,443):
-        raise ValueError("configure an official Feishu custom-bot webhook")
+    webhook=_webhook(prefix)
     target=hashlib.sha256(webhook.encode()).hexdigest()
     batch=hashlib.sha256(json.dumps([mode,sorted(article_ids)],ensure_ascii=False).encode()).hexdigest()
     with store.connection() as conn:
@@ -30,11 +47,7 @@ def send(store, markdown, article_ids, mode="test", session=None):
         if row:
             return {"state":row[0],"duplicate":True}
         conn.execute("INSERT INTO deliveries VALUES(?,?,?,?,?)",(target,batch,"sending",now_iso(),""))
-    payload={"msg_type":"interactive","card":{"schema":"2.0","header":{"template":"blue","title":{"tag":"plain_text","content":"北理消息汇总"+(" · 测试" if mode=="test" else "")}},"body":{"elements":[{"tag":"markdown","content":markdown[:12000]}]}}}
-    secret=os.getenv(prefix+"_SIGNING_SECRET","")
-    if secret:
-        stamp=str(int(time.time()))
-        payload.update(timestamp=stamp,sign=base64.b64encode(hmac.new((stamp+"\n"+secret).encode(),b"",hashlib.sha256).digest()).decode())
+    payload=_sign(_card(title or ("北理消息汇总"+(" · 测试" if mode=="test" else "")), markdown), prefix)
     try:
         response=(session or requests.Session()).post(webhook,json=payload,timeout=(10,30),allow_redirects=False)
         result=response.json()
@@ -46,3 +59,16 @@ def send(store, markdown, article_ids, mode="test", session=None):
         if state=="sent":
             conn.executemany("INSERT OR IGNORE INTO delivered_articles VALUES(?,?,?)",[(target,x,now_iso()) for x in article_ids])
     return {"state":state,"duplicate":False,"batch_id":batch}
+
+
+def alert(title, markdown, template="orange", session=None):
+    """Operations notice to the ops group (``FEISHU_OPS_WEBHOOK``, else the test group)."""
+    prefix="FEISHU_OPS" if os.getenv("FEISHU_OPS_WEBHOOK") else "FEISHU_TEST"
+    webhook=_webhook(prefix)
+    try:
+        response=(session or requests.Session()).post(webhook,json=_sign(_card(title,markdown,template),prefix),
+                                                     timeout=(10,30),allow_redirects=False)
+        result=response.json()
+    except (requests.RequestException,ValueError):
+        return "unknown"
+    return "sent" if response.status_code==200 and result.get("code")==0 else "rejected"

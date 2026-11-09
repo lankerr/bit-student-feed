@@ -1,0 +1,11 @@
+[Unit]
+Description=Run the BIT feed WeRead subscription worker every 5 minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitInactiveSec=5min
+RandomizedDelaySec=30
+Unit=bitfeed-wechat.service
+
+[Install]
+WantedBy=timers.target

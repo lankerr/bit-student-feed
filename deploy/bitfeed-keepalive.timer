@@ -1,0 +1,11 @@
+[Unit]
+Description=Keep BIT feed logins alive and send alerts every 30 minutes
+
+[Timer]
+OnBootSec=5min
+OnUnitInactiveSec=30min
+RandomizedDelaySec=120
+Unit=bitfeed-keepalive.service
+
+[Install]
+WantedBy=timers.target

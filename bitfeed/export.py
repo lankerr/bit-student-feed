@@ -30,15 +30,19 @@ def public_data(store):
     candidate_path = Path(__file__).parent.parent/"config"/"wechat-candidates.json"
     registry = json.loads(candidate_path.read_text(encoding="utf-8")) if candidate_path.exists() else {}
     candidates = registry.get("accounts",registry.get("candidates",[]))
+    status = json.loads(metadata.get("weread_status") or "{}")
     return {"schema_version":2, "generated_at":now_iso(),
         "collection": {k:v for k,v in metadata.items() if k in ("last_collection","source_refreshed_at")},
-        "coverage":"VPS 直接采集的公开官网栏目；公众号独立订阅正在核验，尚未承诺完整覆盖。",
-        "sources":json.loads(metadata.get("source_audit","[]")),
+        "coverage":"VPS 采集的就业网、学校与学院官网栏目，以及经微信读书订阅的公众号（每次只能看到各号最新一篇）。",
+        "sources":json.loads(metadata.get("source_audit","[]"))+json.loads(metadata.get("weread_audit","[]")),
         "wechat_registry":{"historical_candidates":len(candidates),"current_complete":False,
-                           "notice":"官方历史名录仅用于查漏，须逐号核验现行身份和列表权限。"},
+                           "subscribed":status.get("accounts",0),"healthy":status.get("healthy",0),
+                           "session":status.get("session"),"checked_at":status.get("checked_at"),
+                           "notice":"公众号经微信读书订阅，接口每次只返回各号最新一篇；多图文推送的第二篇及以后可能遗漏。"},
         "classifier": {"configured":any(a["classification"] for a in articles),
                        "pending":sum(not a["classification"] for a in articles)},
-        "schedule":{"site":"每日更新", "feishu":"周四、周日 12:00（北京时间），接收配置待完成"},
+        "schedule":{"site":"每日更新", "wechat":"每 5 分钟分批轮询，各号 1～8 小时一次",
+                    "feishu":"周四、周日 12:00（北京时间）"},
         "articles":articles}
 
 

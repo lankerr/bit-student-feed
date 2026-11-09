@@ -135,6 +135,29 @@ class Store:
             results.append(article)
         return results
 
+    def missing_bodies(self, origin, days=14, limit=5):
+        with self.connection() as conn:
+            rows = conn.execute('''SELECT * FROM articles WHERE origin=? AND (body IS NULL OR body='')
+                AND body_status='not_fetched' AND first_seen>=? ORDER BY first_seen DESC LIMIT ?''',
+                (origin, int(time.time()) - days * 86400, limit)).fetchall()
+        return [dict(row) for row in rows]
+
+    def attach_body(self, article_id, body, published_at=None, status="available"):
+        """Store fetched article text; a page-reported publish time replaces first-seen time."""
+        with self.connection() as conn:
+            row = conn.execute("SELECT * FROM articles WHERE id=?", (article_id,)).fetchone()
+            if row is None:
+                raise KeyError(article_id)
+            item = dict(row)
+            known = published_at is not None
+            item = normalize_article({**item, "body": body or "", "body_status": status,
+                "published_at": published_at if known else item["published_at"],
+                "publication_status": "known" if known else item["publication_status"]})
+            conn.execute('''UPDATE articles SET body=?,body_status=?,published_at=?,publication_status=?,
+                source_hash=? WHERE id=?''', (item["body"], item["body_status"], item["published_at"],
+                item["publication_status"], item["source_hash"], article_id))
+        return item
+
     def metadata(self):
         with self.connection() as conn:
             return dict(conn.execute("SELECT key,value FROM meta"))
