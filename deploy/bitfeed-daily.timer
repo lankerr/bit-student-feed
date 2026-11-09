@@ -1,0 +1,10 @@
+[Unit]
+Description=Generate BIT student feed daily at 07:50 Beijing time
+
+[Timer]
+OnCalendar=*-*-* 23:50:00 UTC
+Persistent=true
+Unit=bitfeed-daily.service
+
+[Install]
+WantedBy=timers.target

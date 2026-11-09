@@ -1,0 +1,14 @@
+{
+  "confirmed_from_platform": false,
+  "url": "",
+  "model": "DeepSeek-V4-Flash 正式版-260731",
+  "headers": {
+    "Content-Type": "application/json",
+    "REPLACE_WITH_PLATFORM_AUTH_HEADER": "{{api_key}}"
+  },
+  "body": {},
+  "response_path": "",
+  "success_path": "",
+  "success_value": 0,
+  "_instructions": "请根据学校平台实际 API 文档填写完整接口、鉴权头、请求结构和返回路径。平台只展示了基地址，不能据此猜测 OpenAI/Dify 兼容协议。body 中可使用 {{query}}、{{app_id}}、{{model}}；不要放密钥。核实后才把 confirmed_from_platform 改为 true。"
+}
