@@ -10,6 +10,7 @@ Group=bitfeed
 WorkingDirectory=/opt/bitfeed-site
 Environment=BITFEED_DATA=/var/lib/bitfeed-live
 Environment=BITFEED_WEREAD_DIR=/var/lib/bitfeed-weread
+Environment=PYTHONUNBUFFERED=1
 EnvironmentFile=-/etc/bitfeed/runtime.env
 ExecStart=/opt/bitfeed-site/.venv/bin/python -m bitfeed wechat-sync
 NoNewPrivileges=true

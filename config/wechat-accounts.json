@@ -58,6 +58,8 @@
     {"name": "BIT设计知艺", "fakeid": "Mzg2MjYyMzcxNA==", "unit": "知艺书院", "tier": 1, "evidence": "公众平台搜索 2026-11-10 认证 BIT_ZYSY"},
     {"name": "北京理工大学图书馆", "fakeid": "Mzk0ODUyNzc5Nw==", "unit": "图书馆", "tier": 1, "evidence": "公众平台搜索 2026-11-10 认证"},
     {"name": "北理工空天政策与法律研究院", "fakeid": "Mzg3MzgyMTk2Mg==", "unit": "空天科学与技术学院", "tier": 2, "evidence": "公众平台搜索 2026-11-10 认证"},
+    {"name": "北理工平安校园", "fakeid": "MzI4MDg3ODc2MA==", "unit": "保卫部", "tier": 2, "evidence": "公众平台搜索 2026-11-10 认证 bitsafety"},
+    {"name": "北理微后勤", "fakeid": "MzI1Mjc0NTEwMQ==", "unit": "后勤", "tier": 2, "evidence": "公众平台搜索 2026-11-10 认证 BIT-HQ"},
     {"name": "北理考研在线", "fakeid": "MzIzODgyOTI5Mw==", "unit": "非官方", "tier": 3, "evidence": "关注列表 2026-11-03；民间号默认不订阅"},
     {"name": "北理工PPT模板", "fakeid": "Mzg2NzYzNzM2MA==", "unit": "非官方", "tier": 3, "evidence": "关注列表 2026-11-03；民间号默认不订阅"},
     {"name": "北理工居管会", "fakeid": "MzUzMDE2MzY1NQ==", "unit": "家属区居委会", "tier": 3, "evidence": "关注列表 2026-11-03；与学生事务关系弱"},
