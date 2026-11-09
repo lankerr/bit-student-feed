@@ -9,9 +9,10 @@ SOURCE = {"id":"school-test", "name":"测试学院·通知公告", "url":"https:
 
 
 class Response:
-    def __init__(self, html, status=200):
-        self.content=html.encode("utf-8")
+    def __init__(self, html, status=200, headers=None):
+        self.content=html.encode("utf-8") if isinstance(html, str) else html
         self.status_code=status
+        self.headers=headers or {}
 
 
 class PublicHTTP:
@@ -98,6 +99,27 @@ class WebsitesTest(unittest.TestCase):
         self.assertEqual(data["sources"][0]["state"],"failed")
         self.assertEqual(data["sources"][0]["error"],"HTTP 302")
         self.assertEqual(len(data["articles"]),1)
+
+    def test_same_host_http_to_https_upgrade_is_followed_once(self):
+        http_url="http://example.bit.edu.cn/tzgg/index.htm"
+        https_url="https://example.bit.edu.cn/tzgg/index.htm"
+        html='''<meta charset="utf-8"><li>2026-11-09<a href="a.htm">学院学生工作公开通知消息</a></li>'''
+        source={"id":"school-http", "name":"测试学院·通知公告", "url":http_url}
+        data,http=self.run_collect({
+            http_url:Response("",302,headers={"Location":https_url}),
+            https_url:html,
+        },sources=[source])
+        self.assertEqual([u for u,_ in http.calls],[http_url,https_url])
+        self.assertEqual(data["sources"][0]["state"],"ok")
+        self.assertEqual(data["sources"][0]["url"],https_url)
+        self.assertEqual(len(data["articles"]),1)
+        self.assertTrue(data["articles"][0]["url"].startswith("https://"))
+
+    def test_config_sources_prefer_https_for_former_http_colleges(self):
+        sources=_load_config()
+        by_id={s["id"]:s["url"] for s in sources}
+        for source_id in ("sae-xgdt","smen-tzgg","smen-xsgz","me-xsgztz","opt-xsgz"):
+            self.assertTrue(by_id[source_id].startswith("https://"), source_id)
 
     def test_date_in_headline_alone_stays_unknown(self):
         html='''<meta charset="utf-8"><li><a href="a.htm">2026年11月8日学术讲座报名通知</a></li>'''

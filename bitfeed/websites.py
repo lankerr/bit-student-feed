@@ -39,6 +39,33 @@ def _official_url(value, base=None):
     return urlunsplit((parts.scheme, parts.netloc, parts.path, parts.query, ""))
 
 
+def _https_upgrade_target(current_url, response):
+    """Allow one same-host HTTP→HTTPS upgrade; never follow other redirects."""
+    if response.status_code not in (301, 302, 303, 307, 308):
+        return None
+    location = response.headers.get("Location") if getattr(response, "headers", None) else None
+    if not location:
+        return None
+    try:
+        current, target = urlsplit(current_url), urlsplit(_official_url(location, current_url))
+    except ValueError:
+        return None
+    if (current.scheme != "http" or target.scheme != "https"
+            or (current.hostname or "").lower() != (target.hostname or "").lower()
+            or current.path != target.path or current.query != target.query):
+        return None
+    return urlunsplit(("https", target.netloc, target.path, target.query, ""))
+
+
+def _get_list_page(http, url):
+    response = http.get(url, headers={"User-Agent": USER_AGENT, "Cookie": ""}, timeout=(10, 25), allow_redirects=False)
+    upgrade = _https_upgrade_target(url, response)
+    if upgrade:
+        response = http.get(upgrade, headers={"User-Agent": USER_AGENT, "Cookie": ""}, timeout=(10, 25), allow_redirects=False)
+        url = upgrade
+    return response, url
+
+
 def _is_article_url(value, base):
     try:
         url = _official_url(value, base)
@@ -257,8 +284,11 @@ def collect(config_path=None, session=None, max_pages=3):
                 try:
                     if url in visited:
                         raise ValueError("pagination cycle")
+                    response, resolved = _get_list_page(http, url)
                     visited.add(url)
-                    response = http.get(url, headers={"User-Agent": USER_AGENT, "Cookie": ""}, timeout=(10, 25), allow_redirects=False)
+                    visited.add(resolved)
+                    url = resolved
+                    audit["url"] = url
                     if response.status_code != 200:
                         raise RuntimeError("HTTP " + str(response.status_code))
                     if len(response.content) > 5_000_000:
