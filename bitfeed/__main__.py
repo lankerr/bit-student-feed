@@ -33,6 +33,7 @@ def main():
     sub.add_parser("classify")
     server=sub.add_parser("server-daily")
     server.add_argument("--output",default="dist")
+    server.add_argument("--max-batches",default=3,type=int)
     server.add_argument("--career-pages",default=100,type=int)
     server.add_argument("--web-pages",default=3,type=int)
     daily=sub.add_parser("daily")
@@ -117,7 +118,8 @@ def main():
     if args.command in ("classify","daily","server-daily","refresh"):
         try:
             result["classification"]=classify(store,max_batches=getattr(args,"max_batches",None))
-            store.record_job("classify",result["classification"]["state"],"completed")
+            store.record_job("classify",result["classification"]["state"],
+                             result["classification"].get("reason") or "completed")
         except Exception as exc:
             # Do not log request/response bodies, authorization headers or API keys.
             store.record_job("classify","failed",type(exc).__name__)

@@ -78,13 +78,16 @@ class Store:
         return {"imported": len(normalized), "added": added, "changed": changed}
 
     def candidates(self, limit=20, days=30):
+        # Full-text WeRead articles must not be starved by the large career-list backlog:
+        # available body + known publish time ranks first, then dated list metadata.
         with self.connection() as conn:
             rows = conn.execute('''SELECT a.* FROM articles a LEFT JOIN classifications c
                 ON c.article_id=a.id WHERE a.published_at>=? AND (a.source_expiry=0 OR a.source_expiry>=?) AND
                 (c.article_id IS NULL OR c.source_hash!=a.source_hash OR c.prompt_version!=?)
-                ORDER BY CASE WHEN a.body_status='structured_list_metadata' AND a.source_expiry>? THEN 0
-                    WHEN a.publication_status='known' THEN 1
-                    WHEN a.body_status='structured_list_metadata' THEN 2 ELSE 3 END,
+                ORDER BY CASE WHEN a.body_status='available' AND a.publication_status='known' THEN 0
+                    WHEN a.body_status='structured_list_metadata' AND a.source_expiry>? THEN 1
+                    WHEN a.publication_status='known' THEN 2
+                    WHEN a.body_status='structured_list_metadata' THEN 3 ELSE 4 END,
                     a.published_at DESC LIMIT ?''',
                 (int(time.time())-days*86400, int(time.time()), PROMPT_VERSION, int(time.time()), limit)).fetchall()
         return [dict(row) for row in rows]
@@ -136,9 +139,11 @@ class Store:
         return results
 
     def missing_bodies(self, origin, days=14, limit=5):
+        # title_only means a previous public-page fetch returned no text (often captcha);
+        # keep them eligible so the paced worker can retry within its attempt budget.
         with self.connection() as conn:
             rows = conn.execute('''SELECT * FROM articles WHERE origin=? AND (body IS NULL OR body='')
-                AND body_status='not_fetched' AND first_seen>=? ORDER BY first_seen DESC LIMIT ?''',
+                AND body_status IN ('not_fetched','title_only') AND first_seen>=? ORDER BY first_seen DESC LIMIT ?''',
                 (origin, int(time.time()) - days * 86400, limit)).fetchall()
         return [dict(row) for row in rows]
 

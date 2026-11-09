@@ -105,6 +105,7 @@ def classify(store, contract_path=None, session=None, max_batches=None):
     char_budget = min(60000, max(2000, int(os.getenv("BIT_AGENT_MAX_INPUT_CHARS", "20000"))))
     http = session or requests.Session()
     total = calls = 0
+    budget_stop = False
     while calls < min(daily_limit, max_batches if max_batches is not None else daily_limit):
         candidates = store.candidates(batch_size)
         if not candidates:
@@ -126,7 +127,13 @@ def classify(store, contract_path=None, session=None, max_batches=None):
         headers = render(contract["headers"], replacements)
         if not any(key in str(v) for v in headers.values()):
             raise ValueError("API key must be configured in an HTTP header")
-        store.reserve_call(daily_limit)  # Failed/unknown calls count too; no automatic paid retries.
+        try:
+            store.reserve_call(daily_limit)  # Failed/unknown calls count too; no automatic paid retries.
+        except ValueError as exc:
+            if str(exc) != "daily model request budget reached":
+                raise
+            budget_stop = True
+            break
         calls += 1
         if contract.get("transport") == "hiagent":
             if parts.hostname != "agent.bit.edu.cn":
@@ -196,4 +203,7 @@ def classify(store, contract_path=None, session=None, max_batches=None):
         store.record_job("model_batch","ok",json.dumps({"requested_model":selected,"response_model":actual_model,
                          "items":len(items),"usage":data.get("usage") or {k:data.get(k) for k in
                              ("total_tokens","input_tokens","output_tokens")}},ensure_ascii=False))
-    return {"state":"ok", "classified":total, "requests":calls}
+    outcome = {"state":"budget" if budget_stop and calls == 0 else "ok", "classified":total, "requests":calls}
+    if budget_stop:
+        outcome["reason"] = "daily model request budget reached"
+    return outcome

@@ -205,5 +205,60 @@ class PipelineTest(unittest.TestCase):
         self.store.import_articles([old,upcoming])
         self.assertEqual(self.store.candidates(1)[0]['url'],upcoming['url'])
 
+    def test_model_queue_prioritizes_full_body_weread_over_career_list_backlog(self):
+        career=source(url='https://job.bit.edu.cn/f/recruitmentFair/show?id=2',
+            publication_status='unknown',body_status='structured_list_metadata',
+            source_event_end='2099-12-01 18:00:00',published_at=int(time.time())-30)
+        weread=source(url='https://mp.weixin.qq.com/s/fullbody01',origin='weread',
+            publication_status='known',body_status='available',body='11月20日讲座报名',
+            published_at=int(time.time())-120)
+        self.store.import_articles([career,weread])
+        self.assertEqual(self.store.candidates(1)[0]['url'],weread['url'])
+
+    def _contract(self):
+        path = Path(self.tmp.name)/"contract.json"
+        path.write_text(json.dumps({"confirmed_from_platform":True,
+            "url":"https://agent.bit.edu.cn/api/proxy/api/v1/chat_query_v2",
+            "model":"published-v4","headers":{"Apikey":"{{api_key}}"},
+            "body":{"Query":"{{query}}"},"response_path":"answer"}), encoding="utf-8")
+        return path
+
+    def test_exhausted_daily_budget_does_not_call_the_model(self):
+        self.store.import_articles([source()])
+        self.store.reserve_call(1)
+        class HTTP:
+            calls = []
+            def post(self, *args, **kwargs):
+                self.calls.append(args)
+                raise AssertionError("budget stop must not call the school API")
+        with patch.dict(os.environ, {"BIT_AGENT_API_KEY":"test-secret","BIT_AGENT_DAILY_REQUEST_LIMIT":"1"}):
+            result = classify(self.store, self._contract(), HTTP(), max_batches=3)
+        self.assertEqual(result["state"], "budget")
+        self.assertEqual(result["classified"], 0)
+        self.assertEqual(result["requests"], 0)
+
+    def test_budget_reached_mid_run_keeps_completed_batches(self):
+        self.store.import_articles([source(), source(url="https://cs.bit.edu.cn/second.htm")])
+        self.store.reserve_call(2)
+        class HTTP:
+            def post(self, url, **kwargs):
+                query = kwargs["json"]["Query"]
+                article_id = json.loads(query.split("数据：",1)[1])[0]["article_id"]
+                row = next(a for a in self.store.candidates(5) if a["id"]==article_id)
+                class Response:
+                    status_code = 200
+                    def json(inner):
+                        return {"answer": json.dumps({"items":[answer(row)]}), "model":"published-v4"}
+                return Response()
+        http = HTTP()
+        http.store = self.store
+        with patch.dict(os.environ, {"BIT_AGENT_API_KEY":"test-secret","BIT_AGENT_DAILY_REQUEST_LIMIT":"2",
+                                     "BIT_AGENT_BATCH_SIZE":"1"}):
+            result = classify(self.store, self._contract(), http, max_batches=3)
+        self.assertEqual(result["state"], "ok")
+        self.assertEqual(result["classified"], 1)
+        self.assertEqual(result["requests"], 1)
+        self.assertEqual(result["reason"], "daily model request budget reached")
+
 
 if __name__=="__main__":unittest.main()

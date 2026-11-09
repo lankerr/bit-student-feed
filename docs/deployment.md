@@ -93,6 +93,6 @@ BITFEED_DIGEST_MODE=production
 | 公众号长时间没有新文章 | 登录维护页的会话状态；`scheduler.json` 中的 `cooldown_until`、各号 `state`/`error` |
 | 微信读书显示已失效 | 打开登录维护页（会自动出码）用微信扫码；平时由 `bitfeed-keepalive` 续期，不必反复扫 |
 | 公众号后台显示即将过期 | `keepalive.json` 的 `expires_at` 应在每次续期后顺延 4 天；不顺延时用「格拉摩根的指挥官」管理员微信在维护页扫码 |
-| 新消息仍待分拣 | `refresh` 的输出、学校 API 预算（每日 20 次）、`model_retry_after` |
+| 新消息仍待分拣 | `refresh` 的输出、学校 API 预算（每日 20 次）、`model_retry_after`。额度用完时任务状态是 `budget`，采集和导出仍完成，次日继续 |
 | 网页没更新 | GitHub Actions 的 Daily public feed 运行记录；`curl http://127.0.0.1:18780/site-data.json` |
 | 飞书没收到汇总 | `journalctl -u bitfeed-digest`；`deliveries` 表中的状态 |
