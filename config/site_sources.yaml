@@ -1,0 +1,185 @@
+sources:
+  # ========= 公众号（wewe-rss 部署后自动启用，见 README） =========
+  # 在 wewe-rss 后台搜索添加公众号即可，无需改这里。
+  # 若想单独订阅某个公众号的独立源，也可以加：
+  # - id: mp-xxx
+  #   name: 北理就业
+  #   type: rss
+  #   url: http://127.0.0.1:4000/feeds/xxxxxxxx.xml
+
+  # ========= 学校级通知 =========
+  - id: bit-tzgg
+    name: 北理工主页-通知公告
+    type: boda
+    url: https://www.bit.edu.cn/tzgg17/index.htm
+
+  - id: grd-tzgg
+    name: 研究生院-通知公告
+    type: boda
+    url: https://grd.bit.edu.cn/tzgg1/index.htm
+
+  # ========= 各学院（2026-11-08 经 discover.py 逐个验证可解析） =========
+  - id: sae-xgdt
+    name: 宇航学院-学工动态
+    type: boda
+    url: http://sae.bit.edu.cn/xgtd/xgdt/index.htm
+
+  - id: smen-tzgg
+    name: 机电学院-通知公告
+    type: boda
+    url: http://smen.bit.edu.cn/xxfw/tzgg2023/index.htm
+
+  - id: smen-xsgz
+    name: 机电学院-学生工作
+    type: boda
+    url: http://smen.bit.edu.cn/xsgz/xgdt/index.htm
+
+  - id: me-xsgztz
+    name: 机械与车辆学院-学生工作通知
+    type: boda
+    url: http://me.bit.edu.cn/rcpy/xsgztz/index.htm
+
+  - id: opt-xsgz
+    name: 光电学院-学生工作
+    type: boda
+    url: http://opt.bit.edu.cn/zlxz/xsgzxz/index.htm
+
+  - id: cs-xgtz
+    name: 计算机学院-学工通知
+    type: boda
+    url: https://cs.bit.edu.cn/xsgz/xgtz/index.htm
+
+  - id: cs-tzgg
+    name: 计算机学院-通知公告
+    type: boda
+    url: https://cs.bit.edu.cn/tzgg/index.htm
+
+  - id: ice-tzgg
+    name: 集成电路与电子学院-通知公告
+    type: boda
+    url: https://ice.bit.edu.cn/xxfw/tzgg1/index.htm
+
+  - id: ice-xgdt
+    name: 集成电路与电子学院-学工动态
+    type: boda
+    url: https://ice.bit.edu.cn/xsgz/xgdt/index.htm
+
+  - id: cst-tzgg
+    name: 网络空间安全学院-通知公告
+    type: boda
+    url: https://cst.bit.edu.cn/xxfw/tzgg/index.htm
+
+  - id: cst-xgdt
+    name: 网络空间安全学院-学工动态
+    type: boda
+    url: https://cst.bit.edu.cn/xsgz/xgdt/index.htm
+
+  - id: mse-tzgg
+    name: 材料学院-通知公告
+    type: boda
+    url: https://mse.bit.edu.cn/tzgg/index.htm
+
+  - id: mse-xgdt
+    name: 材料学院-学工动态
+    type: boda
+    url: https://mse.bit.edu.cn/xsgz/xgdt/index.htm
+
+  - id: cce-txzz
+    name: 化学与化工学院-团学组织
+    type: boda
+    url: https://cce.bit.edu.cn/dqgz/txzz/index.htm
+
+  - id: ls-txgz
+    name: 生命学院-团学工作
+    type: boda
+    url: https://ls.bit.edu.cn/xsgz/txgz/index.htm
+
+  - id: math-tzgg
+    name: 数学与统计学院-通知公告
+    type: boda
+    url: https://math.bit.edu.cn/tzgg/index.htm
+
+  - id: math-xgdt
+    name: 数学与统计学院-学工动态
+    type: boda
+    url: https://math.bit.edu.cn/xsgz/xgdt/index.htm
+
+  - id: physics-tzgg
+    name: 物理学院-通知公告
+    type: boda
+    url: https://physics.bit.edu.cn/rcpy/tzgg5/index.htm
+
+  - id: se-tzgg
+    name: 人文与社会科学学院-通知公告
+    type: boda
+    url: https://se.bit.edu.cn/tzgg/index.htm
+
+  - id: sfl-tzgg
+    name: 外国语学院-通知公告
+    type: boda
+    url: https://sfl.bit.edu.cn/tzgg/index.htm
+
+  - id: sfl-xgdt
+    name: 外国语学院-学工动态
+    type: boda
+    url: https://sfl.bit.edu.cn/xsgz/xgdt/index.htm
+
+  - id: design-xzzq
+    name: 设计与艺术学院-学工动态
+    type: boda
+    url: https://design.bit.edu.cn/dqgz/xzzq/index.htm
+
+  - id: ac-tzgg
+    name: 自动化学院-通知公告
+    type: boda
+    url: https://ac.bit.edu.cn/tzgg/index.htm
+
+  - id: sie-zhtz
+    name: 信息与电子学院-综合通知
+    type: boda
+    url: https://sie.bit.edu.cn/tzgg/zhtz/index.htm
+    allow_no_date: true   # 该站列表不带日期
+
+  - id: som-tzgg
+    name: 管理与经济学院-通知公告
+    type: boda
+    url: https://som.bit.edu.cn/gbxwzx/tzgg/index.htm
+
+  - id: som-xsgz
+    name: 管理与经济学院-学生工作通知
+    type: boda
+    url: https://som.bit.edu.cn/xsgz/tzgg1/index.htm
+
+  - id: xuteli-tzgg
+    name: 徐特立学院-通知公告
+    type: boda
+    url: https://xuteli.bit.edu.cn/tzgg/index.htm
+
+  - id: student-tzgg
+    name: 学生服务中心-通知公告
+    type: boda
+    url: https://student.bit.edu.cn/tzgg/index.htm
+
+  # ========= 公众号·搜狗搜索（免扫码免登录）=========
+  # 链接为搜狗临时链接(点开需及时)；标题/日期/来源公众号是稳定情报
+  # 用账号名当关键词 = 等效"订阅"该公众号（type=2 反爬宽松，稳定）
+  - id: sg-jiuye
+    name: 公众号·北理就业
+    type: sogou
+    query: "北理就业"
+
+  - id: sg-ibit
+    name: 公众号·i北理
+    type: sogou
+    query: "i北理"
+
+  - id: sg-xuandiao
+    name: 公众号搜索-选调
+    type: sogou
+    query: "北京理工大学 选调"
+
+  - id: sg-yanhui
+    name: 公众号·北理研会
+    type: sogou
+    query: "北理研会"
+

@@ -56,3 +56,12 @@ python -m http.server 18881 --directory dist
 - 飞书已实现测试/正式隔离和持久化去重。群 webhook 尚待接入，正式定时发送未启用。
 - 原桌面可执行文件尚未替换；当前交付是独立的数据流水线和订阅网站。
 - 报名资格、名额、临时调整请打开原文核对。活动回顾不会进入可参加活动；缺少日期证据时标待核验。
+
+## 站点与公众号搜索来源（2026-11-09 并入，来自 bit-feed 工程）
+
+- `bitfeed/site_sources.py` + `config/site_sources.yaml`：34 个**免授权**来源
+  - 30 个 bit.edu.cn 二级单位官网栏目（20 个单位，静态页解析）
+  - 4 个搜狗微信搜索通道（账号名等效订阅：北理就业 / i北理 / 北理研会 + 选调关键词）
+- `collect_site_feed.py` 产出 `site-data/site-feed.json`（schema 与 public-feed 一致，kind=site/mp-search）
+- 工作流 `sites-daily.yml`：每日 08:00（北京）采集并提交，先于 daily-pages 构建
+- 采集自 [rachelos/we-mp-rss] 之外的自研解析器；we-mp-rss 评估结论：默认模式仍依赖闭源 WeRSS/weread 上游，未采用

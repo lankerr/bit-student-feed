@@ -1,0 +1,40 @@
+name: Sites daily collect
+# 采集 34 个免授权来源（20个二级单位官网栏目 + 搜狗公众号搜索），
+# 每日 08:00(北京) 先于 daily-pages 构建，产出 site-data/site-feed.json
+on:
+  schedule:
+    - cron: "0 0 * * *"
+  workflow_dispatch: {}
+permissions:
+  contents: write
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: 安装依赖
+        run: pip install requests beautifulsoup4 pyyaml
+      - name: 采集站点与公众号搜索
+        run: python collect_site_feed.py
+      - name: 生成当日站点速览
+        run: |
+          python - <<'EOF'
+          import json, datetime
+          d = json.load(open('site-data/site-feed.json', encoding='utf-8'))
+          today = datetime.date.today().isoformat()
+          items = [a for a in d['articles'] if a.get('date') == today]
+          lines = [f'# 站点速览 · {today}', '', f'共 {len(items)} 条（官网{sum(1 for i in items if i["kind"]=="site")}/公众号搜索{sum(1 for i in items if i["kind"]=="mp-search")}）', '']
+          for a in items[:200]:
+              lines.append(f"- {a['date']} [{a['group']}] {a['title']} → {a['url']}")
+          open('site-data/today.md', 'w', encoding='utf-8').write('\n'.join(lines))
+          EOF
+      - name: 提交
+        run: |
+          git config user.name "sites-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add site-data
+          git commit -m "site-feed $(date -u +%%F)" || echo "无变更"
+          git push
