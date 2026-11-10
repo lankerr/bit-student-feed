@@ -13,7 +13,7 @@
 | 来源 | 方式 | 说明 |
 | --- | --- | --- |
 | 北理就业网 | 公开分页接口 | 招聘、实习、宣讲会、双选会、指导活动、通知 |
-| 学校与学院官网 | 30 个公开栏目 | 见 `config/official-websites.json` |
+| 学校与学院官网 | 31 个公开栏目 | 见 `config/official-websites.json` |
 | 公众号 | 微信读书网页版订阅 | 名单见 `config/wechat-accounts.json`，按重要程度每 1～8 小时查一次 |
 
 公众号为什么走微信读书：2026-07-30 起，公众号后台读取“其他公众号文章列表”的接口（`appmsgpublish`）对所有第三方一律返回 `200013`，等待和重试都不会恢复，wechat-article-exporter 因此停止维护，we-mp-rss 也改走微信读书。微信读书网页版目前每次只返回一个号的**最新一篇**，所以多图文推送的第二篇及以后可能看不到；就业类消息另有就业网接口兜底。
@@ -50,7 +50,7 @@ flowchart LR
 | `bitfeed-keepalive.timer` 每 30 分钟 | 微信读书与「格拉摩根的指挥官」后台自动续期，失效则飞书提醒并在登录维护页自动出码 |
 | `bitfeed-refresh.timer` 每 2 小时、周四周日 11:40 | 学校模型分拣新消息，重新导出网页数据 |
 | `bitfeed-daily.timer` 每天 07:50 | 采集就业网和官网，分拣并导出 |
-| `bitfeed-digest.timer` 周四、周日 12:00 | 飞书汇总 |
+| `bitfeed-digest.timer` 周四、周日 12:00 | 飞书汇总。窗口内的奖学金、可参加活动、讲座、竞赛、通知和招聘全部列入；一张卡片放不下就分成多张 |
 | `bitfeed-web.service` 常驻 | 公开导出 `site-data.json`、学校工作流用的 `feed.json`，以及登录维护页 |
 | GitHub Actions 每天 08:20 | 从 VPS 拉公开数据，构建网页 |
 
