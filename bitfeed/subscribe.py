@@ -258,9 +258,15 @@ class Worker:
                 if exc.state == "deleted":
                     self.store.attach_body(article["id"], "", None, "deleted")
                 continue
-            self.store.attach_body(article["id"], page["body"], page["published_at"],
-                                   "available" if page["body"] else "title_only")
-            attempts.pop(article["id"], None)
+            if page["body"]:
+                self.store.attach_body(article["id"], page["body"], page["published_at"], "available")
+                attempts.pop(article["id"], None)
+            else:
+                # A parsed page with no text is usually a picture post. Retrying it
+                # forever occupies the two body slots on every timer run.
+                attempts[article["id"]] = attempts.get(article["id"], 0) + 1
+                status = "no_text" if attempts[article["id"]] >= 3 else "title_only"
+                self.store.attach_body(article["id"], "", page["published_at"], status)
             summary["bodies"] += 1
         for key in [k for k in attempts if attempts[k] >= 3][:-200]:
             attempts.pop(key)

@@ -75,6 +75,25 @@ class WorkerTest(unittest.TestCase):
                                                           "https://mp.weixin.qq.com/s/abcdefgh12"])
         self.assertEqual({r["publication_status"] for r in rows}, {"unknown"})
 
+    def test_picture_post_stops_consuming_body_slots(self):
+        now = int(self.clock.now)
+        self.store.import_articles([{
+            "url": "https://mp.weixin.qq.com/s/picturepost01", "title": "只有图片的讲座",
+            "source": "经济学院", "published_at": now, "publication_status": "unknown",
+            "kind": "wechat", "origin": "weread", "body_status": "title_only"}])
+        worker = self.worker({})
+        worker.state = worker._load_state()
+        worker.body_gap = (0, 0)
+        empty = {"body": "", "published_at": now, "title": "只有图片的讲座", "canonical": ""}
+        with mock.patch("bitfeed.article_page.fetch", return_value=empty) as fetch:
+            for _ in range(3):
+                worker._fetch_bodies(2, {"bodies": 0})
+        self.assertEqual(fetch.call_count, 3)
+        self.assertEqual(self.store.missing_bodies("weread"), [])
+        with self.store.connection() as conn:
+            status = conn.execute("SELECT body_status FROM articles").fetchone()["body_status"]
+        self.assertEqual(status, "no_text")
+
     def test_quota_answer_sets_persistent_backoff(self):
         routes = {"/web/shelf/sync": Response({"books": [{"bookId": JOB}, {"bookId": GSU}]}),
                   "/api/mp/cover": Response({"errCode": -2014})}

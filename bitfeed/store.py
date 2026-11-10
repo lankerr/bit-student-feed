@@ -139,8 +139,8 @@ class Store:
         return results
 
     def missing_bodies(self, origin, days=14, limit=5):
-        # title_only means a previous public-page fetch returned no text (often captcha);
-        # keep them eligible so the paced worker can retry within its attempt budget.
+        # title_only is a parsed page that had no text yet. no_text means that stayed
+        # true across retries, so picture posts do not keep consuming the body budget.
         with self.connection() as conn:
             rows = conn.execute('''SELECT * FROM articles WHERE origin=? AND (body IS NULL OR body='')
                 AND body_status IN ('not_fetched','title_only') AND first_seen>=? ORDER BY first_seen DESC LIMIT ?''',
