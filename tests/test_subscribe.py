@@ -164,10 +164,30 @@ class DigestAlertTest(unittest.TestCase):
         self.assertNotIn("圆满落幕", built["markdown"])
         self.assertNotIn("采购", built["markdown"])
         self.assertIn("【公众号其他新推送】", built["markdown"])
-        services = built["markdown"].split("【通知与服务】")[1].split("【")[0]
-        self.assertIn("费振勇奖学金", services)
+        scholar = built["markdown"].split("【奖学金与评优】")[1].split("【")[0]
+        self.assertIn("费振勇奖学金", scholar)
+        self.assertLess(built["markdown"].find("【奖学金与评优】"), built["markdown"].find("【升学就业】"))
         self.assertEqual(len(built["article_ids"]), 3)
         self.assertTrue(built["title"].startswith("北理消息汇总 · "))
+
+    def test_digest_sends_every_item_across_cards_when_one_card_would_truncate(self):
+        now = int(time.time())
+        extra = [{"url": f"https://job.bit.edu.cn/f/recruitmentinfo/show?recruitmentId=digest{i:04d}",
+                  "title": ("校园招聘岗位说明" * 30) + str(i), "source": "北理就业",
+                  "published_at": now - i, "kind": "career"} for i in range(30)]
+        self.store.import_articles(extra)
+        built = digest.build(self.store)
+        self.assertEqual(len(built["article_ids"]), 33)
+        self.assertGreater(len(built["cards"]), 1)
+        with mock.patch("bitfeed.feishu.send", return_value={"state": "sent", "duplicate": False}) as send:
+            result = digest.send(self.store, "test")
+        self.assertEqual(result["state"], "sent")
+        self.assertGreaterEqual(send.call_count, 2)
+        sent = []
+        for call in send.call_args_list:
+            self.assertLessEqual(len(call.args[1]), 12000)
+            sent.extend(call.args[2])
+        self.assertEqual(sorted(sent), sorted(built["article_ids"]))
 
     def test_digest_window_advances_only_after_delivery(self):
         with mock.patch("bitfeed.feishu.send", return_value={"state": "rejected", "duplicate": False}):
