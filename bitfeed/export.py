@@ -1,7 +1,7 @@
 import html
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from email.utils import format_datetime
 from pathlib import Path
 from shutil import copyfile
@@ -67,19 +67,68 @@ def validate_public_data(data):
     return data
 
 
+def _marked_days(article):
+    classification = article.get("classification") or {}
+    days = [classification.get("deadline"), classification.get("event_date")]
+    expiry = int(article.get("source_expiry") or 0)
+    if expiry > 0:
+        days.append(datetime.fromtimestamp(expiry, TZ).date().isoformat())
+    return [day for day in days if day]
+
+
+def _soonest(article):
+    days = _marked_days(article)
+    return min(days) if days else "9999-12-31"
+
+
+def _chinese_day(day):
+    if not day or len(str(day)) < 10:
+        return "未注明"
+    day = str(day)
+    return f"{day[:4]}年{int(day[5:7])}月{int(day[8:10])}日"
+
+
+def _guide_block(article):
+    classification = article["classification"]
+    when = _chinese_day(_soonest(article)) if _marked_days(article) else "未注明"
+    return [f"## {article['title']}",
+            f"来源：{article['source']}；最近节点：{when}。",
+            classification["summary"], f"建议：{classification['next_step']}", f"原文：{article['url']}", ""]
+
+
 def guidance(data):
-    today = datetime.now(TZ).date().isoformat()
-    active = [a for a in data["articles"] if a.get("classification") and
-              a["classification"].get("verified_activity") and
-              all(not a["classification"].get(k) or a["classification"][k] >= today for k in ("deadline","event_date"))]
-    lines = [f"# 北理每日活动指引 · {today}", "", f"生成时间：{data['generated_at']}",
-             "原文日期、报名资格及临时调整以主办方为准。", ""]
+    today = datetime.now(TZ).date()
+    today_iso = today.isoformat()
+    horizon = (today + timedelta(days=14)).isoformat()
+    active = []
+    for article in data["articles"]:
+        classification = article.get("classification") or {}
+        if not classification.get("verified_activity"):
+            continue
+        days = _marked_days(article)
+        if any(day < today_iso for day in days):
+            continue
+        active.append(article)
+    active.sort(key=lambda article: (_soonest(article), article.get("title") or ""))
+    near = [article for article in active if _soonest(article) <= horizon]
+    later = [article for article in active if _soonest(article) > horizon]
+    lines = [f"# 北理每日活动指引 · {today_iso}", "", f"生成时间：{data['generated_at']}",
+             "原文日期、报名资格及临时调整以主办方为准。临近的安排排在前面。", ""]
     if not active:
         lines += ["当前没有通过日期与来源核验的可参加活动。请先查看今日新消息和待核验事项。", ""]
-    for a in active[:12]:
-        c = a["classification"]
-        lines += [f"## {a['title']}", f"来源：{a['source']}；截止：{c.get('deadline') or '未注明'}；活动日期：{c.get('event_date') or '未注明'}。",
-                  c["summary"], f"建议：{c['next_step']}", f"原文：{a['url']}", ""]
+    else:
+        lines += ["## 两周内", ""]
+        if near:
+            for article in near:
+                lines += _guide_block(article)
+        else:
+            lines += ["未来 14 天没有已核验、仍开放的活动。", ""]
+        if later:
+            lines += ["## 更晚仍开放", ""]
+            for article in later[:12]:
+                lines += _guide_block(article)
+            if len(later) > 12:
+                lines += [f"其余 {len(later) - 12} 条仍开放的安排见网页。", ""]
     return "\n".join(lines), active
 
 

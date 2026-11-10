@@ -75,6 +75,22 @@ class PipelineTest(unittest.TestCase):
         self.assertTrue((dest/"feed.xml").exists())
         self.assertIn("当前没有通过",(dest/"daily.md").read_text(encoding="utf-8"))
 
+    def test_guidance_puts_the_soonest_open_date_first(self):
+        from bitfeed.export import guidance
+        def item(title, deadline, score, expiry=0):
+            return {"title":title,"source":"北理就业","url":"https://job.bit.edu.cn/f/recruitmentinfo/show?recruitmentId="+title,
+                    "source_expiry":expiry,"classification":{"verified_activity":True,"score":score,"deadline":deadline,
+                    "event_date":None,"summary":"招聘","next_step":"打开原文核对应聘要求。"}}
+        text, active = guidance({"generated_at":"2026-11-10T12:00:00+08:00","articles":[
+            item("较晚的校园招聘","2099-06-01",99),
+            item("较早的校园招聘","2099-01-15",10),
+            item("官网已经截止","2099-03-01",90,1)]})
+        self.assertEqual([a["title"] for a in active], ["较早的校园招聘","较晚的校园招聘"])
+        self.assertLess(text.find("较早的校园招聘"), text.find("较晚的校园招聘"))
+        self.assertIn("2099年1月15日", text)
+        self.assertNotIn("官网已经截止", text)
+        self.assertIn("## 更晚仍开放", text)
+
     def test_no_key_no_network_and_call_budget(self):
         with patch.dict(os.environ,{"BIT_AGENT_API_KEY":""}):
             self.assertEqual(classify(self.store)["state"],"pending_configuration")

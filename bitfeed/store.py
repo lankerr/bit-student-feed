@@ -133,7 +133,9 @@ class Store:
             if article["classification"]:
                 c = article["classification"]
                 today = datetime.now(TZ).date().isoformat()
-                if any(c.get(k) and c[k] < today for k in ("deadline", "event_date")):
+                expiry = int(article.get("source_expiry") or 0)
+                official = datetime.fromtimestamp(expiry, TZ).date().isoformat() if expiry > 0 else ""
+                if (official and official < today) or any(c.get(k) and c[k] < today for k in ("deadline", "event_date")):
                     c.update(event_status="expired", verified_activity=False, score=min(c["score"], 10))
             results.append(article)
         return results

@@ -8,8 +8,13 @@ let articles=[], scope='all', shown=30;
 const today=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 
 function el(tag,text,cls){const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;}
-function active(a){const c=a.classification;return Boolean(c?.verified_activity&&c.event_status==='actionable'&&['deadline','event_date'].every(k=>!c[k]||c[k]>=today));}
-function articleState(a){const c=a.classification;if(!c)return null;if(c.event_status==='actionable'&&!active(a))return ['deadline','event_date'].some(k=>c[k]&&c[k]<today)?'expired':'needs_verification';return c.event_status;}
+function shanghaiDay(seconds){if(!seconds)return '';const d=new Date(seconds*1000);return Number.isNaN(d.getTime())?'':new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit'}).format(d);}
+function dueDays(a){const c=a.classification||{};return [c.deadline,c.event_date,shanghaiDay(a.source_expiry)].filter(Boolean);}
+function active(a){const c=a.classification;return Boolean(c?.verified_activity&&c.event_status==='actionable'&&dueDays(a).every(day=>day>=today));}
+function due(a){const days=dueDays(a);return days.length?days.slice().sort()[0]:'9999-12-31';}
+function chineseDay(day){return day&&day.length>=10?day.slice(0,4)+'年'+Number(day.slice(5,7))+'月'+Number(day.slice(8,10))+'日':'';}
+function plusDays(iso,count){const [y,m,d]=iso.split('-').map(Number);return new Date(Date.UTC(y,m-1,d+count)).toISOString().slice(0,10);}
+function articleState(a){const c=a.classification;if(!c)return null;if(c.event_status==='actionable'&&!active(a))return dueDays(a).some(day=>day<today)?'expired':'needs_verification';return c.event_status;}
 function dateTime(value){if(!value)return '暂无成功记录';const d=new Date(value);return Number.isNaN(d.getTime())?'时间未注明':d.toLocaleString('zh-CN',{timeZone:'Asia/Shanghai',hour12:false});}
 function countText(value){return typeof value==='number'&&Number.isFinite(value)&&value>=0?String(value):'—';}
 function link(title,url){const a=el('a',title);const u=new URL(url);if(!['https:','http:'].includes(u.protocol)||u.username||u.password||!(u.hostname==='mp.weixin.qq.com'||u.hostname==='bit.edu.cn'||u.hostname.endsWith('.bit.edu.cn')))throw new Error('无效来源');a.href=url;a.target='_blank';a.rel='noopener noreferrer';return a;}
@@ -92,9 +97,13 @@ document.querySelectorAll('[data-copy]').forEach(b=>b.addEventListener('click',a
     const fresh=successes[0]||d.collection?.source_refreshed_at,age=fresh?(Date.now()-new Date(fresh).getTime())/3600000:Infinity;
     $('freshness').textContent=(fresh?(age>36?'采集更新需要检查 · 最近成功采集 ':'最近成功采集 ')+dateTime(fresh):'尚无成功采集时间记录')+' · 页面生成 '+dateTime(d.generated_at);
     $('coverage').textContent='只展示服务端已收录的公开消息，覆盖范围见来源清单。首次收录、发布日期和活动日期分别标注；模型分拣不等于全文核验。';
-    $('day').textContent=today+' · 今日指引';$('guidance').replaceChildren();const items=articles.filter(active).slice(0,3);
+    $('day').textContent=today+' · 今日指引';$('guidance').replaceChildren();
+    const ranked=articles.filter(active).sort((a,b)=>due(a).localeCompare(due(b))||a.title.localeCompare(b.title,'zh'));
+    const near=ranked.filter(a=>due(a)<=plusDays(today,14));
+    const items=(near.length?near:ranked).slice(0,3);
     if(!items.length)$('guidance').append(el('p','当前没有通过日期与来源核验的可参加活动。先看看新通知；待分拣、已结束和活动回顾不会列入推荐。'));
-    for(const a of items){const n=el('div',undefined,'guide-item');n.append(link(a.title,a.url),el('p',a.classification.next_step));$('guidance').append(n);}
+    else if(!near.length)$('guidance').append(el('p','未来 14 天没有已核验的活动。下面是最近仍开放的安排。'));
+    for(const a of items){const n=el('div',undefined,'guide-item');n.append(link(a.title,a.url),el('p',chineseDay(due(a))+' · '+a.classification.next_step));$('guidance').append(n);}
     render();
   }catch(e){
     $('freshness').textContent='更新数据暂时无法读取';$('guidance').textContent='请稍后刷新页面。';$('source-summary').textContent='来源记录暂时无法读取';
