@@ -35,7 +35,7 @@ def _guess(title):
 def _rows(store, since):
     with store.connection() as conn:
         rows = conn.execute('''SELECT a.id,a.title,a.url,a.source,a.published_at,a.first_seen,a.kind,a.origin,
-            a.publication_status,a.source_hash,c.payload,c.source_hash AS chash FROM articles a
+            a.publication_status,a.source_hash,a.body,a.source_expiry,c.payload,c.source_hash AS chash FROM articles a
             LEFT JOIN classifications c ON c.article_id=a.id
             WHERE a.first_seen>? AND ((a.publication_status='known' AND a.published_at>=?)
                 OR (a.publication_status='unknown' AND a.origin='weread'))''',
@@ -50,7 +50,27 @@ def _rows(store, since):
 
 
 def _short(day):
-    return day[5:].replace("-", "月", 1) + "日" if day else ""
+    """Keep the year. A May date in a November card is usually next year, not last May."""
+    if not day or len(day) < 10:
+        return ""
+    return f"{day[:4]}年{int(day[5:7])}月{int(day[8:10])}日"
+
+
+def _official_day(item):
+    """Employment-site end date wins over a model date when the collector stored one."""
+    expiry = int(item.get("source_expiry") or 0)
+    if expiry > 0:
+        return datetime.fromtimestamp(expiry, TZ).date().isoformat()
+    body = item.get("body") or ""
+    match = re.search(r"(?:招聘有效截止|活动结束)（官网字段）：(\d{4}-\d{2}-\d{2})", body)
+    return match.group(1) if match else ""
+
+
+def _due(item):
+    official = _official_day(item)
+    if official:
+        return official
+    return (item.get("classification") or {}).get("deadline") or ""
 
 
 def build(store, now=None):
@@ -63,6 +83,9 @@ def build(store, now=None):
     for item in _rows(store, since):
         c = item["classification"] or {}
         if c.get("event_status") in ("expired", "recap") or SKIP.search(item["title"]):
+            continue
+        official = _official_day(item)
+        if official and official < today:
             continue
         if any(c.get(k) and c[k] < today for k in ("deadline", "event_date")):
             continue
@@ -79,8 +102,8 @@ def build(store, now=None):
     sections = []
     for key, label in SECTIONS:
         items = buckets[key]
-        if key == "actionable":
-            items.sort(key=lambda a: ((a["classification"] or {}).get("deadline") or (a["classification"] or {}).get("event_date") or "9999"))
+        if key in ("actionable", "career"):
+            items.sort(key=lambda a: (_due(a) or (a["classification"] or {}).get("event_date") or "9999", -a["published_at"]))
         else:
             items.sort(key=lambda a: (-(a["classification"] or {}).get("score", 40), -a["published_at"]))
         if not items:
@@ -88,7 +111,7 @@ def build(store, now=None):
         pairs = []
         for a in items:
             c = a["classification"] or {}
-            when = "；".join(x for x in (f"截止 {_short(c['deadline'])}" if c.get("deadline") else "",
+            when = "；".join(x for x in (f"截止 {_short(_due(a))}" if _due(a) else "",
                                         f"活动 {_short(c['event_date'])}" if c.get("event_date") else "") if x)
             pairs.append((f"- [{a['title']}]({a['url']})  {a['source']}" + (f"｜{when}" if when else ""), a["id"]))
         sections.append((label, pairs))

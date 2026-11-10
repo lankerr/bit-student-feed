@@ -1,4 +1,5 @@
 import json
+from datetime import datetime
 from pathlib import Path
 import tempfile
 import time
@@ -6,6 +7,7 @@ import unittest
 from unittest import mock
 
 from bitfeed import alerts, digest
+from bitfeed.domain import TZ
 from bitfeed.store import Store
 from bitfeed.subscribe import Worker, ping_session
 from test_weread import HTTP, Response
@@ -188,6 +190,42 @@ class DigestAlertTest(unittest.TestCase):
             self.assertLessEqual(len(call.args[1]), 12000)
             sent.extend(call.args[2])
         self.assertEqual(sorted(sent), sorted(built["article_ids"]))
+
+    def test_digest_shows_the_year_and_uses_the_official_deadline(self):
+        now = int(time.time())
+        self.store.import_articles([
+            {"url": "https://job.bit.edu.cn/f/recruitmentinfo/show?recruitmentId=closed0001",
+             "title": "已经结束的校园招聘", "source": "北理就业", "published_at": now - 3600,
+             "kind": "career", "origin": "official_server",
+             "body": "招聘有效截止（官网字段）：2020-05-04 00:00:00",
+             "source_application_deadline": "2020-05-04 00:00:00"},
+            {"url": "https://job.bit.edu.cn/f/recruitmentinfo/show?recruitmentId=soon0001",
+             "title": "较早截止的校园招聘", "source": "北理就业", "published_at": now - 7200,
+             "kind": "career", "origin": "official_server",
+             "body": "招聘有效截止（官网字段）：2099-01-15 00:00:00",
+             "source_application_deadline": "2099-01-15 00:00:00"},
+            {"url": "https://job.bit.edu.cn/f/recruitmentinfo/show?recruitmentId=late0001",
+             "title": "较晚截止的校园招聘", "source": "北理就业", "published_at": now - 1800,
+             "kind": "career", "origin": "official_server",
+             "body": "招聘有效截止（官网字段）：2099-05-04 00:00:00\n2099-12-01",
+             "source_application_deadline": "2099-05-04 00:00:00"}])
+        with self.store.connection() as conn:
+            late = dict(conn.execute("SELECT * FROM articles WHERE title=?", ("较晚截止的校园招聘",)).fetchone())
+        self.assertEqual(datetime.fromtimestamp(late["source_expiry"], TZ).strftime("%Y-%m-%d %H:%M:%S"),
+                         "2099-05-04 23:59:59")
+        self.store.apply_classifications({"items": [{
+            "article_id": late["id"], "source_hash": late["source_hash"], "category": "career",
+            "event_status": "needs_verification", "score": 50, "confidence": 0.5,
+            "summary": "校园招聘", "next_step": "打开原文核对应聘要求。", "reason": "招聘未截止",
+            "deadline": "2099-12-01", "deadline_evidence": "2099-12-01",
+            "event_date": None, "event_date_evidence": ""}]}, "school", [late["id"]])
+        text = digest.build(self.store)["markdown"]
+        self.assertNotIn("已经结束的校园招聘", text)
+        self.assertIn("截止 2099年1月15日", text)
+        self.assertIn("截止 2099年5月4日", text)
+        self.assertNotIn("2099年12月1日", text)
+        self.assertNotIn("05月04日", text)
+        self.assertLess(text.find("较早截止的校园招聘"), text.find("较晚截止的校园招聘"))
 
     def test_digest_window_advances_only_after_delivery(self):
         with mock.patch("bitfeed.feishu.send", return_value={"state": "rejected", "duplicate": False}):

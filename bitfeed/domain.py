@@ -41,6 +41,21 @@ def article_id(url):
     return hashlib.sha256(identity.encode()).hexdigest()
 
 
+def _source_expiry(item):
+    expiry = str(item.get("source_event_end") or item.get("source_application_deadline") or "").strip()
+    if not expiry:
+        return int(item.get("source_expiry") or 0)
+    try:
+        parsed = datetime.fromisoformat(expiry.replace(" ", "T", 1))
+    except (ValueError, TypeError):
+        return int(item.get("source_expiry") or 0)
+    parsed = parsed.replace(tzinfo=TZ) if parsed.tzinfo is None else parsed.astimezone(TZ)
+    # The careers site writes a deadline as midnight at the start of the last day.
+    if (parsed.hour, parsed.minute, parsed.second, parsed.microsecond) == (0, 0, 0, 0):
+        parsed = parsed.replace(hour=23, minute=59, second=59)
+    return int(parsed.timestamp())
+
+
 def normalize_article(item):
     url = normalize_url(item.get("url"))
     title = re.sub(r"\s+", " ", str(item.get("title") or "")).strip()[:500]
@@ -56,11 +71,7 @@ def normalize_article(item):
     digest = str(item.get("digest") or "")[:1000]
     source = str(item.get("source") or item.get("group") or "未注明来源")[:120]
     source_hash = hashlib.sha256(json.dumps([title, published, body, digest], ensure_ascii=False).encode()).hexdigest()
-    expiry = item.get("source_event_end") or item.get("source_application_deadline") or ""
-    try:
-        source_expiry = int(datetime.fromisoformat(expiry).replace(tzinfo=TZ).timestamp()) if expiry else 0
-    except (ValueError, TypeError):
-        source_expiry = int(item.get("source_expiry") or 0)
+    source_expiry = _source_expiry(item)
     return {"id": article_id(url), "title": title, "url": url, "source": source,
         "published_at": published, "kind": item.get("kind", "wechat"), "body": body,
         "digest": digest, "source_hash": source_hash,
