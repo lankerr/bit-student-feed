@@ -1,4 +1,5 @@
 import json
+import os
 from datetime import datetime, timedelta
 from pathlib import Path
 import tempfile
@@ -161,6 +162,9 @@ class WorkerTest(unittest.TestCase):
 
 class DigestAlertTest(unittest.TestCase):
     def setUp(self):
+        hook = mock.patch.dict(os.environ, {"FEISHU_TEST_WEBHOOK": "https://open.feishu.cn/open-apis/bot/v2/hook/unit-test"})
+        hook.start()
+        self.addCleanup(hook.stop)
         self.tmp = tempfile.TemporaryDirectory()
         self.store = Store(self.tmp.name)
         now = int(time.time())
@@ -241,11 +245,11 @@ class DigestAlertTest(unittest.TestCase):
             return json.dumps({"items": items}), "school"
 
         with mock.patch.object(digest, "SITE_DIR", Path(self.tmp.name) / "site"), \
-                mock.patch("bitfeed.feishu.send", return_value={"state": "sent", "duplicate": False}) as send:
+                mock.patch("requests.Session.post", return_value=Response({"code": 0})) as send:
             result = digest.send(self.store, "test", ask=ask)
         self.assertEqual(result["model"], "ok")
         self.assertEqual(calls, ["BITFEED_WEEKLY_V1", "BITFEED_WEEKLY_SUMMARY_V1"])
-        text = send.call_args.args[1]
+        text = send.call_args.kwargs["json"]["card"]["body"]["elements"][0]["content"]
         self.assertIn("本周重点是奖学金申请。", text)
         self.assertIn("【本周重点】", text)
         self.assertIn("费振勇奖学金评选的通知", text.split("【本周重点】")[1])
@@ -276,18 +280,49 @@ class DigestAlertTest(unittest.TestCase):
             raise RuntimeError("school API unavailable")
 
         with mock.patch.object(digest, "SITE_DIR", Path(self.tmp.name) / "site"):
-            with mock.patch("bitfeed.feishu.send", return_value={"state": "rejected", "duplicate": False}):
+            with mock.patch("requests.Session.post", return_value=Response({"code": 19001})):
                 failed = digest.send(self.store, "test", ask=broken)
             self.assertEqual(failed["model"], "unavailable")
             self.assertNotIn("digest:window_end", self.store.metadata())
-            with mock.patch("bitfeed.feishu.send", return_value={"state": "sent", "duplicate": False}) as send:
+            with mock.patch("requests.Session.post", return_value=Response({"code": 0})) as send:
                 digest.send(self.store, "test", ask=broken)
-        self.assertIn("未能参与筛选", send.call_args.args[1])
+        self.assertIn("未能参与筛选", send.call_args.kwargs["json"]["card"]["body"]["elements"][0]["content"])
         self.assertIn("digest:window_end", self.store.metadata())
         again = digest.build(self.store, use_model=False)
         self.assertEqual(again["groups"]["daily"], [])
         self.assertEqual(again["groups"]["career_jobs"], [])
         self.assertEqual(self.titles(again, "career_events"), ["某研究所2027届宣讲会"])
+
+    def test_week_rollover_and_receipt_from_previous_release(self):
+        from bitfeed.feishu import send
+        wednesday = datetime(2026, 11, 11, 16, 52, tzinfo=TZ)
+        sunday = datetime(2026, 11, 15, 12, tzinfo=TZ).timestamp()
+        with mock.patch("requests.Session.post", return_value=Response({"code": 0})) as post, \
+                mock.patch("bitfeed.feishu.now_iso", return_value=wednesday.isoformat()), \
+                mock.patch.object(digest, "SITE_DIR", Path(self.tmp.name)), \
+                mock.patch.object(digest, "_editor", return_value=({}, "", "skipped")):
+            send(self.store, "legacy", ["old article", "weekly:2026-11-11"])
+            with mock.patch.object(digest, "build", side_effect=AssertionError("already delivered")):
+                self.assertTrue(digest.send(self.store, now=sunday-1)["duplicate"])
+            self.assertFalse(digest.send(self.store, now=sunday)["duplicate"])
+            with mock.patch.object(digest, "build", side_effect=AssertionError("already delivered")):
+                self.assertTrue(digest.send(self.store, now=sunday+86400)["duplicate"])
+            self.assertEqual(post.call_count, 2)
+            self.assertEqual(int(self.store.metadata()["digest:window_end"]), sunday)
+
+    def test_ambiguous_weekly_receipt_survives_rerun(self):
+        import requests
+        with mock.patch("requests.Session.post", side_effect=requests.Timeout) as post, \
+                mock.patch.object(digest, "SITE_DIR", Path(self.tmp.name)), \
+                mock.patch.object(digest, "_editor", return_value=({}, "", "skipped")):
+            now = time.time()
+            self.assertEqual(digest.send(self.store, now=now)["state"], "unknown")
+            with mock.patch.object(digest, "build", side_effect=AssertionError("cannot resend")):
+                result = digest.send(self.store, now=now)
+            self.assertEqual(result["state"], "unknown")
+            self.assertTrue(result["duplicate"])
+            self.assertNotIn("digest:window_end", self.store.metadata())
+            post.assert_called_once()
 
     def test_alerts_repeat_at_most_every_12_hours_and_announce_recovery(self):
         wechat = Path(self.tmp.name) / "wechat"

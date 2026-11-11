@@ -93,7 +93,7 @@ def main():
             print(feishu_digest.card(built,"(Word 链接)")); return 0
         result=feishu_digest.send(store,args.mode)
         print(json.dumps(result,ensure_ascii=False))
-        return 0 if result["state"]=="sent" or result.get("duplicate") else 1
+        return 0 if result["state"]=="sent" else 1
     if args.command=="server-daily":
         from .career import collect as career_collect
         from .websites import collect as website_collect

@@ -345,17 +345,26 @@ def card(digest, docx_url):
 
 def send(store, mode=None, now=None, ask=None):
     mode = mode or os.getenv("BITFEED_DIGEST_MODE", "test")
+    now = time.time() if now is None else now
+    local = datetime.fromtimestamp(now, TZ)
+    sunday = local.replace(hour=12, minute=0, second=0, microsecond=0) - timedelta(days=(local.weekday()+1)%7)
+    if sunday > local:
+        sunday -= timedelta(days=7)
+    week_start = sunday.isoformat()
+    prior = feishu.week_receipt(store, mode, week_start)
+    if prior and prior != "rejected":
+        return {"state": prior, "duplicate": True, "week_start": week_start}
     digest = build(store, now, ask)
     name = f"bit-weekly-{digest['today']}.docx"
-    write_docx(digest, SITE_DIR / "weekly" / name)
     docx_url = f"{FILES_BASE}/weekly/{name}"
     identifiers = digest["article_ids"] or ["empty:" + str(digest["window"][1] // 86400)]
     result = feishu.send(store, card(digest, docx_url), identifiers + ["weekly:" + digest["today"]],
-                         mode=mode, title=digest["title"])
-    delivered = result["state"] == "sent" or result.get("duplicate")
-    if result["state"] == "sent":
-        store.set_meta("digest:window_end", digest["window"][1])
-    outcome = {"state": "sent" if delivered else result["state"], "duplicate": bool(result.get("duplicate")),
+                         mode=mode, title=digest["title"], week_start=week_start,
+                         publish_attachment=lambda: write_docx(digest, SITE_DIR / "weekly" / name),
+                         window_end=digest["window"][1])
+    if result.get("duplicate"):
+        return {"state": result["state"], "duplicate": True, "week_start": week_start}
+    outcome = {"state": result["state"], "duplicate": False,
                "items": len(digest["article_ids"]), "title": digest["title"], "docx": docx_url,
                "model": digest["model_state"],
                "groups": {k: len(rows) for k, rows in digest["groups"].items()}}
