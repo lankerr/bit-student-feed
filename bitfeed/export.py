@@ -42,7 +42,7 @@ def public_data(store):
         "classifier": {"configured":any(a["classification"] for a in articles),
                        "pending":sum(not a["classification"] for a in articles)},
         "schedule":{"site":"每日更新", "wechat":"每 5 分钟分批轮询，各号 1～8 小时一次",
-                    "feishu":"周四、周日 12:00（北京时间）"},
+                    "feishu":"每周日 12:00（北京时间），附 Word 完整版"},
         "articles":articles}
 
 

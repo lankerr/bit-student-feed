@@ -66,6 +66,22 @@ class CareerTest(unittest.TestCase):
         self.assertEqual(news["publication_status"], "known")
         self.assertLess(news["published_at"], event["published_at"])
 
+    def test_job_post_is_dated_by_its_start_and_a_start_only_fair_expires_that_day(self):
+        from bitfeed.domain import normalize_article
+
+        def modify(spec, page):
+            row = page["list"][0]
+            if spec["type"] == "jobs":
+                row.update(startTime="2026-11-05 16:29:32", endTime="2027-05-04 00:00:00")
+            if spec["id"] == "career-fairs":
+                row.update(startTime="2021-10-27 14:00:00", endTime=None)
+        data = self.run_collect(PublicHTTP(modify), page_size=1)
+        job = next(a for a in data["articles"] if a["source_id"] == "career-jobs")
+        self.assertEqual(job["publication_status"], "known")
+        self.assertEqual(job["published_at"], int(datetime(2026, 11, 5, 16, 29, 32, tzinfo=TZ).timestamp()))
+        fair = normalize_article(next(a for a in data["articles"] if a["source_id"] == "career-fairs"))
+        self.assertEqual(fair["source_expiry"], int(datetime(2021, 10, 27, 23, 59, 59, tzinfo=TZ).timestamp()))
+
     def test_page_cap_is_reported_as_partial(self):
         data = self.run_collect(PublicHTTP(), max_pages=1, page_size=1)
         self.assertTrue(all(s["state"]=="partial" and s["truncated"] and not s["complete"] for s in data["sources"]))

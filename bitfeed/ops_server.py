@@ -119,9 +119,32 @@ def add_account(link):
     return 200, {"added": name}
 
 
+EVENT_START = re.compile(r"活动开始（官网字段）：(\d{4}-\d{2}-\d{2})")
+
+
 def feed(days, limit):
-    articles = Store(LIVE).public_articles(days=days, limit=limit) if (LIVE / "bitfeed.sqlite").exists() else []
-    rows = [{k: a[k] for k in ("id", "title", "url", "source", "published_at")} for a in articles]
+    store = Store(LIVE) if (LIVE / "bitfeed.sqlite").exists() else None
+    articles = store.public_articles(days=days, limit=limit) if store else []
+    starts = {}
+    unknown = [a["id"] for a in articles if a.get("publication_status") == "unknown"]
+    if unknown:
+        with store.connection() as conn:
+            for start in range(0, len(unknown), 500):
+                chunk = unknown[start:start + 500]
+                marks = ",".join("?" * len(chunk))
+                for row in conn.execute(f"SELECT id, body FROM articles WHERE id IN ({marks})", chunk):
+                    match = EVENT_START.search(row["body"] or "")
+                    if match:
+                        starts[row["id"]] = match.group(1)
+    rows = []
+    for a in articles:
+        row = {k: a[k] for k in ("id", "title", "url", "source", "published_at")}
+        # "date" is what a reader should see: the event day for talks and fairs,
+        # otherwise the publication day.
+        row["date"] = starts.get(a["id"]) or a["date"]
+        row["date_kind"] = "event" if a["id"] in starts else (
+            "first_seen" if a.get("publication_status") == "unknown" else "published")
+        rows.append(row)
     return {"schema_version": 1, "mode": "test", "production_delivery_enabled": False,
             "batch_id": hashlib.sha256("|".join(r["id"] for r in rows).encode()).hexdigest(),
             "generated_at": datetime.now(TZ).isoformat(timespec="seconds"),
@@ -197,7 +220,15 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         parts = urlsplit(self.path)
         if parts.path == "/health":
-            return self._send(200, {"ok": True, "role": "public-article-index", "schedule": "Thu,Sun 12:00 Asia/Shanghai"})
+            return self._send(200, {"ok": True, "role": "public-article-index", "schedule": "Sun 12:00 Asia/Shanghai"})
+        weekly = re.fullmatch(r"/weekly/(bit-weekly-\d{4}-\d{2}-\d{2}\.docx)", parts.path)
+        if weekly:
+            try:
+                data = (SITE / "weekly" / weekly.group(1)).read_bytes()
+            except OSError:
+                return self._send(404, {"error": "not found"})
+            return self._send(200, data,
+                              "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
         if parts.path == "/site-data.json":
             try:
                 return self._send(200, (SITE / "data.json").read_bytes())

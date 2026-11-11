@@ -121,8 +121,9 @@ class Store:
                 a.source_hash,a.origin,a.publication_status,a.body_status,a.source_expiry,
                 c.payload,c.model,c.source_hash AS classified_source_hash
                 FROM articles a LEFT JOIN classifications c ON c.article_id=a.id
-                WHERE a.published_at>=? ORDER BY a.published_at DESC LIMIT ?''',
-                (int(time.time())-days*86400, limit)).fetchall()
+                WHERE a.published_at>=? AND (a.source_expiry=0 OR a.source_expiry>=?)
+                ORDER BY a.published_at DESC LIMIT ?''',
+                (int(time.time())-days*86400, int(time.time()), limit)).fetchall()
         results = []
         for row in rows:
             article = dict(row)

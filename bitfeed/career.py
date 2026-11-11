@@ -90,7 +90,10 @@ def _article(row, spec, current):
     if PERSONAL_NOTICE.search(title):
         return None
     url = _public_url(row["url"])
-    published_at, publication_status = _published(row.get("releaseDate") if spec["type"] == "news" else None, current)
+    # A job post goes live at startTime, so that is its publication date. Talks and
+    # fairs only carry event times, which must not pose as publication dates.
+    published_field = {"news": row.get("releaseDate"), "jobs": row.get("startTime")}.get(spec["type"])
+    published_at, publication_status = _published(published_field, current)
     lines = [title]
     event_start = event_end = ""
     if spec["type"] == "event":

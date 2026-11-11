@@ -56,7 +56,7 @@ def main():
     resolve=sub.add_parser("wechat-resolve",help="resolve official accounts via public-platform search")
     resolve.add_argument("--limit",default=40,type=int)
     sub.add_parser("alerts",help="send login/collection alerts to Feishu")
-    digest=sub.add_parser("feishu-digest",help="Thu/Sun digest to Feishu")
+    digest=sub.add_parser("feishu-digest",help="weekly digest to Feishu with a Word file")
     digest.add_argument("--mode",choices=("test","production"))
     digest.add_argument("--dry-run",action="store_true")
     args=parser.parse_args()
@@ -87,7 +87,10 @@ def main():
     if args.command=="feishu-digest":
         from . import digest as feishu_digest
         if args.dry_run:
-            print(json.dumps(feishu_digest.build(store),ensure_ascii=False,indent=1)); return 0
+            built=feishu_digest.build(store,use_model=False)
+            print(json.dumps({"title":built["title"],"period":built["period"],
+                              "groups":{k:len(v) for k,v in built["groups"].items()}},ensure_ascii=False))
+            print(feishu_digest.card(built,"(Word 链接)")); return 0
         result=feishu_digest.send(store,args.mode)
         print(json.dumps(result,ensure_ascii=False))
         return 0 if result["state"]=="sent" or result.get("duplicate") else 1

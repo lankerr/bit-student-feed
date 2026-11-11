@@ -1,5 +1,5 @@
 [Unit]
-Description=BIT feed: send the twice-weekly Feishu digest
+Description=BIT feed: send the weekly Feishu digest and its Word file
 After=network-online.target
 Wants=network-online.target
 
@@ -9,13 +9,14 @@ User=bitfeed
 Group=bitfeed
 WorkingDirectory=/opt/bitfeed-site
 Environment=BITFEED_DATA=/var/lib/bitfeed-live
+Environment=BITFEED_SITE_DIR=/var/lib/bitfeed-pipeline/site
 EnvironmentFile=-/etc/bitfeed/runtime.env
 ExecStart=/opt/bitfeed-site/.venv/bin/python -m bitfeed feishu-digest
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectHome=true
 ProtectSystem=strict
-ReadWritePaths=/var/lib/bitfeed-live
-UMask=0027
-MemoryMax=128M
-TimeoutStartSec=300
+ReadWritePaths=/var/lib/bitfeed-live /var/lib/bitfeed-pipeline/site
+UMask=0022
+MemoryMax=192M
+TimeoutStartSec=1500

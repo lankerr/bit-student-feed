@@ -43,6 +43,10 @@ def article_id(url):
 
 def _source_expiry(item):
     expiry = str(item.get("source_event_end") or item.get("source_application_deadline") or "").strip()
+    start_only = not expiry
+    if start_only:
+        # Many careers-site fairs list only a start time; they are over after that day.
+        expiry = str(item.get("source_event_start") or "").strip()
     if not expiry:
         return int(item.get("source_expiry") or 0)
     try:
@@ -51,8 +55,8 @@ def _source_expiry(item):
         return int(item.get("source_expiry") or 0)
     parsed = parsed.replace(tzinfo=TZ) if parsed.tzinfo is None else parsed.astimezone(TZ)
     # The careers site writes a deadline as midnight at the start of the last day.
-    if (parsed.hour, parsed.minute, parsed.second, parsed.microsecond) == (0, 0, 0, 0):
-        parsed = parsed.replace(hour=23, minute=59, second=59)
+    if start_only or (parsed.hour, parsed.minute, parsed.second, parsed.microsecond) == (0, 0, 0, 0):
+        parsed = parsed.replace(hour=23, minute=59, second=59, microsecond=0)
     return int(parsed.timestamp())
 
 

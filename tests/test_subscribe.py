@@ -1,10 +1,11 @@
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 import tempfile
 import time
 import unittest
 from unittest import mock
+import zipfile
 
 from bitfeed import alerts, digest
 from bitfeed.domain import TZ
@@ -163,6 +164,9 @@ class DigestAlertTest(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.store = Store(self.tmp.name)
         now = int(time.time())
+        day = lambda offset: (datetime.now(TZ) + timedelta(days=offset)).strftime("%Y-%m-%d")
+        self.talk_day = day(3)
+        job = "https://job.bit.edu.cn/f/recruitmentinfo/show?recruitmentId="
         self.store.import_articles([
             {"url": "https://mp.weixin.qq.com/s/aaaaaaaaaa1", "title": "2027届选调生宣讲会", "source": "北理就业",
              "published_at": now - 3600, "origin": "weread"},
@@ -173,87 +177,108 @@ class DigestAlertTest(unittest.TestCase):
             {"url": "https://www.bit.edu.cn/tzgg17/zcgg/x.htm", "title": "红外无损检测系统采购更正公告", "source": "北理工主页",
              "published_at": now - 3600, "kind": "site"},
             {"url": "https://math.bit.edu.cn/x.htm", "title": "关于开展第六届费振勇奖学金评选的通知", "source": "数学学院",
-             "published_at": now - 3600, "kind": "site"}])
+             "published_at": now - 3600, "kind": "site"},
+            {"url": "https://job.bit.edu.cn/f/recruitmentFair/show?id=talk1", "title": "某研究所2027届宣讲会",
+             "source": "北理就业官网·宣讲会", "published_at": now, "publication_status": "unknown",
+             "origin": "official_server", "kind": "official",
+             "body": f"活动开始（官网字段）：{self.talk_day} 14:00:00",
+             "source_event_start": f"{self.talk_day} 14:00:00"},
+            {"url": "https://job.bit.edu.cn/f/bilateralchosefair/show?id=old1",
+             "title": "（因疫情原因暂缓举办）北京理工大学2022届毕业生秋季综合招聘会",
+             "source": "北理就业官网·双选会", "published_at": now, "publication_status": "unknown",
+             "origin": "official_server", "kind": "official",
+             "body": "活动开始（官网字段）：2021-10-27 14:00:00", "source_event_start": "2021-10-27 14:00:00"},
+            {"url": job + "new1", "title": "本周新上的校园招聘", "source": "北理就业官网·招聘职位",
+             "published_at": now - 2 * 86400, "origin": "official_server", "kind": "official",
+             "body": "招聘有效截止（官网字段）：2099-01-15 00:00:00",
+             "source_application_deadline": "2099-01-15 00:00:00"},
+            {"url": job + "old1", "title": "一个多月前的校园招聘", "source": "北理就业官网·招聘职位",
+             "published_at": now - 40 * 86400, "origin": "official_server", "kind": "official",
+             "body": "招聘有效截止（官网字段）：2099-05-04 00:00:00",
+             "source_application_deadline": "2099-05-04 00:00:00"},
+            {"url": job + "soon1", "title": "三天后截止的校园招聘", "source": "北理就业官网·招聘职位",
+             "published_at": now - 40 * 86400, "origin": "official_server", "kind": "official",
+             "body": f"招聘有效截止（官网字段）：{day(3)} 00:00:00",
+             "source_application_deadline": f"{day(3)} 00:00:00"}])
 
     def tearDown(self):
         self.tmp.cleanup()
 
-    def test_digest_groups_by_rules_and_skips_recaps(self):
-        built = digest.build(self.store)
-        self.assertIn("【升学就业】", built["markdown"])
-        self.assertIn("2027届选调生宣讲会", built["markdown"])
-        self.assertNotIn("圆满落幕", built["markdown"])
-        self.assertNotIn("采购", built["markdown"])
-        self.assertIn("【公众号其他新推送】", built["markdown"])
-        scholar = built["markdown"].split("【奖学金与评优】")[1].split("【")[0]
-        self.assertIn("费振勇奖学金", scholar)
-        self.assertLess(built["markdown"].find("【奖学金与评优】"), built["markdown"].find("【升学就业】"))
-        self.assertEqual(len(built["article_ids"]), 3)
-        self.assertTrue(built["title"].startswith("北理消息汇总 · "))
+    def titles(self, built, group):
+        return [a["title"] for a in built["groups"][group]]
 
-    def test_digest_sends_every_item_across_cards_when_one_card_would_truncate(self):
-        now = int(time.time())
-        extra = [{"url": f"https://job.bit.edu.cn/f/recruitmentinfo/show?recruitmentId=digest{i:04d}",
-                  "title": ("校园招聘岗位说明" * 30) + str(i), "source": "北理就业",
-                  "published_at": now - i, "kind": "career"} for i in range(30)]
-        self.store.import_articles(extra)
-        built = digest.build(self.store)
-        self.assertEqual(len(built["article_ids"]), 33)
-        self.assertGreater(len(built["cards"]), 1)
-        with mock.patch("bitfeed.feishu.send", return_value={"state": "sent", "duplicate": False}) as send:
-            result = digest.send(self.store, "test")
-        self.assertEqual(result["state"], "sent")
-        self.assertGreaterEqual(send.call_count, 2)
-        sent = []
-        for call in send.call_args_list:
-            self.assertLessEqual(len(call.args[1]), 12000)
-            sent.extend(call.args[2])
-        self.assertEqual(sorted(sent), sorted(built["article_ids"]))
+    def test_weekly_uses_publication_days_for_posts_and_event_days_for_the_careers_site(self):
+        built = digest.build(self.store, use_model=False)
+        self.assertEqual(sorted(self.titles(built, "daily")),
+                         sorted(["2027届选调生宣讲会", "秋日的校园", "关于开展第六届费振勇奖学金评选的通知"]))
+        self.assertEqual(self.titles(built, "career_events"), ["某研究所2027届宣讲会"])
+        self.assertEqual(self.titles(built, "career_jobs"), ["本周新上的校园招聘"])
+        self.assertEqual(self.titles(built, "jobs_closing"), ["三天后截止的校园招聘"])
+        everything = json.dumps(built["groups"], ensure_ascii=False)
+        for gone in ("圆满落幕", "采购", "暂缓举办", "一个多月前"):
+            self.assertNotIn(gone, everything)
+        text = digest.card(built, "http://example/weekly.docx")
+        self.assertIn("活动 " + digest._short(self.talk_day), text)
+        self.assertRegex(digest._short(self.talk_day), r"^\d{4}年")
+        self.assertIn("http://example/weekly.docx", text)
+        self.assertTrue(built["title"].startswith("北理一周汇总 · "))
+        self.assertNotIn("暂缓举办", json.dumps(self.store.public_articles(days=4000), ensure_ascii=False))
 
-    def test_digest_shows_the_year_and_uses_the_official_deadline(self):
-        now = int(time.time())
-        self.store.import_articles([
-            {"url": "https://job.bit.edu.cn/f/recruitmentinfo/show?recruitmentId=closed0001",
-             "title": "已经结束的校园招聘", "source": "北理就业", "published_at": now - 3600,
-             "kind": "career", "origin": "official_server",
-             "body": "招聘有效截止（官网字段）：2020-05-04 00:00:00",
-             "source_application_deadline": "2020-05-04 00:00:00"},
-            {"url": "https://job.bit.edu.cn/f/recruitmentinfo/show?recruitmentId=soon0001",
-             "title": "较早截止的校园招聘", "source": "北理就业", "published_at": now - 7200,
-             "kind": "career", "origin": "official_server",
-             "body": "招聘有效截止（官网字段）：2099-01-15 00:00:00",
-             "source_application_deadline": "2099-01-15 00:00:00"},
-            {"url": "https://job.bit.edu.cn/f/recruitmentinfo/show?recruitmentId=late0001",
-             "title": "较晚截止的校园招聘", "source": "北理就业", "published_at": now - 1800,
-             "kind": "career", "origin": "official_server",
-             "body": "招聘有效截止（官网字段）：2099-05-04 00:00:00\n2099-12-01",
-             "source_application_deadline": "2099-05-04 00:00:00"}])
-        with self.store.connection() as conn:
-            late = dict(conn.execute("SELECT * FROM articles WHERE title=?", ("较晚截止的校园招聘",)).fetchone())
-        self.assertEqual(datetime.fromtimestamp(late["source_expiry"], TZ).strftime("%Y-%m-%d %H:%M:%S"),
-                         "2099-05-04 23:59:59")
-        self.store.apply_classifications({"items": [{
-            "article_id": late["id"], "source_hash": late["source_hash"], "category": "career",
-            "event_status": "needs_verification", "score": 50, "confidence": 0.5,
-            "summary": "校园招聘", "next_step": "打开原文核对应聘要求。", "reason": "招聘未截止",
-            "deadline": "2099-12-01", "deadline_evidence": "2099-12-01",
-            "event_date": None, "event_date_evidence": ""}]}, "school", [late["id"]])
-        text = digest.build(self.store)["markdown"]
-        self.assertNotIn("已经结束的校园招聘", text)
-        self.assertIn("截止 2099年1月15日", text)
-        self.assertIn("截止 2099年5月4日", text)
-        self.assertNotIn("2099年12月1日", text)
-        self.assertNotIn("05月04日", text)
-        self.assertLess(text.find("较早截止的校园招聘"), text.find("较晚截止的校园招聘"))
+    def test_model_verdicts_shape_the_card_and_the_word_file(self):
+        calls = []
 
-    def test_digest_window_advances_only_after_delivery(self):
-        with mock.patch("bitfeed.feishu.send", return_value={"state": "rejected", "duplicate": False}):
-            digest.send(self.store, "test")
-        self.assertNotIn("digest:window_end", self.store.metadata())
-        with mock.patch("bitfeed.feishu.send", return_value={"state": "sent", "duplicate": False}):
-            digest.send(self.store, "test")
+        def ask(store, query, limit, system):
+            calls.append(query.splitlines()[0])
+            if query.startswith("BITFEED_WEEKLY_SUMMARY_V1"):
+                return json.dumps({"items": [], "summary": "本周重点是奖学金申请。"}), "school"
+            items = []
+            for line in query.splitlines():
+                if not line[:1].isdigit():
+                    continue
+                n, label, source, when, title = line.split("｜", 4)
+                items.append({"n": int(n), "keep": title != "秋日的校园", "star": "奖学金" in title,
+                              "note": "可申请" if "奖学金" in title else ""})
+            return json.dumps({"items": items}), "school"
+
+        with mock.patch.object(digest, "SITE_DIR", Path(self.tmp.name) / "site"), \
+                mock.patch("bitfeed.feishu.send", return_value={"state": "sent", "duplicate": False}) as send:
+            result = digest.send(self.store, "test", ask=ask)
+        self.assertEqual(result["model"], "ok")
+        self.assertEqual(calls, ["BITFEED_WEEKLY_V1", "BITFEED_WEEKLY_SUMMARY_V1"])
+        text = send.call_args.args[1]
+        self.assertIn("本周重点是奖学金申请。", text)
+        self.assertIn("【本周重点】", text)
+        self.assertIn("费振勇奖学金评选的通知", text.split("【本周重点】")[1])
+        self.assertNotIn("秋日的校园", text)
+        files = list((Path(self.tmp.name) / "site" / "weekly").glob("bit-weekly-*.docx"))
+        self.assertEqual(len(files), 1)
+        self.assertIn(files[0].name, text)
+        with zipfile.ZipFile(files[0]) as archive:
+            document = archive.read("word/document.xml").decode("utf-8")
+            rels = archive.read("word/_rels/document.xml.rels").decode("utf-8")
+        self.assertIn("本周新上的校园招聘", document)
+        self.assertIn("北理就业 · 未来一周的宣讲会与双选会", document)
+        self.assertIn("模型判断本周参考价值较低", document)
+        self.assertGreater(document.find("秋日的校园"), document.find("参考价值较低"))
+        self.assertIn("job.bit.edu.cn", rels)
+
+    def test_window_advances_only_after_delivery_and_model_trouble_keeps_everything(self):
+        def broken(*args, **kwargs):
+            raise RuntimeError("school API unavailable")
+
+        with mock.patch.object(digest, "SITE_DIR", Path(self.tmp.name) / "site"):
+            with mock.patch("bitfeed.feishu.send", return_value={"state": "rejected", "duplicate": False}):
+                failed = digest.send(self.store, "test", ask=broken)
+            self.assertEqual(failed["model"], "unavailable")
+            self.assertNotIn("digest:window_end", self.store.metadata())
+            with mock.patch("bitfeed.feishu.send", return_value={"state": "sent", "duplicate": False}) as send:
+                digest.send(self.store, "test", ask=broken)
+        self.assertIn("未能参与筛选", send.call_args.args[1])
         self.assertIn("digest:window_end", self.store.metadata())
-        self.assertIn("没有新的重要消息", digest.build(self.store)["markdown"])
+        again = digest.build(self.store, use_model=False)
+        self.assertEqual(again["groups"]["daily"], [])
+        self.assertEqual(again["groups"]["career_jobs"], [])
+        self.assertEqual(self.titles(again, "career_events"), ["某研究所2027届宣讲会"])
 
     def test_alerts_repeat_at_most_every_12_hours_and_announce_recovery(self):
         wechat = Path(self.tmp.name) / "wechat"

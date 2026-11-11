@@ -24,12 +24,12 @@ journalctl -u bitfeed-wechat.service -n 20 --no-pager
 
 | 单元 | 作用 |
 | --- | --- |
-| `bitfeed-web.service` | 0.0.0.0:18780：`/health`、`/site-data.json`、`/feed.json`、`/test-receipts`、`/ops/<口令>/` |
+| `bitfeed-web.service` | 0.0.0.0:18780：`/health`、`/site-data.json`、`/feed.json`、`/weekly/<周报>.docx`、`/test-receipts`、`/ops/<口令>/` |
 | `bitfeed-wechat.timer` | 每 5 分钟一次微信读书订阅（`python -m bitfeed wechat-sync`） |
 | `bitfeed-keepalive.timer` | 每 30 分钟：微信读书 `shelf/sync` 续期 + 公众号后台首页续期，然后检查提醒 |
-| `bitfeed-refresh.timer` | 每 2 小时及周四、周日 11:40：分拣与导出（`refresh`，每次最多 3 批） |
+| `bitfeed-refresh.timer` | 每 2 小时及周日 11:40：分拣与导出（`refresh`，每次最多 3 批） |
 | `bitfeed-daily.timer` | 每天 07:50：就业网与官网采集、分拣、导出（`server-daily`） |
-| `bitfeed-digest.timer` | 周四、周日 12:00：飞书汇总（`feishu-digest`） |
+| `bitfeed-digest.timer` | 每周日 12:00：一周汇总与 Word 完整版（`feishu-digest`） |
 
 旧的 `bitfeed-pipeline.service`（读本机微信导出的测试接口）已停用，`/feed.json` 改由新服务从线上数据库提供，格式不变。
 
@@ -84,9 +84,20 @@ BITFEED_PRODUCTION_SEND=true
 BITFEED_DIGEST_MODE=production
 ```
 
-运维提醒想单独发到另一个群时，设置 `FEISHU_OPS_WEBHOOK`。发送结果以飞书返回的 `code=0` 为准；超时记为 `unknown`，不会自动重发。同一批文章不会重复发送，汇总窗口只在全部卡片都送达后前移。
+运维提醒想单独发到另一个群时，设置 `FEISHU_OPS_WEBHOOK`。发送结果以飞书返回的 `code=0` 为准；超时记为 `unknown`，不会自动重发。同一批文章不会重复发送，汇总窗口只在送达后前移。
 
-汇总包含窗口内每一条通过筛选的消息：奖学金单独成节并排在招聘和竞赛之前，招标公告和活动回顾不进入正文。截止日期写全年月日；就业网「招聘有效截止」或「活动结束」早于今天的不再进入正文，招聘按截止日期从近到远排。飞书单张卡片大约只能放 1.2 万字，因此正文按 8000 字拆成多张卡片，标题带「1/2」这样的序号。
+### 一周汇总
+
+每周日 12:00 发一次。飞书自定义机器人不能发送文件，所以完整内容写成 Word，放在 `http://<VPS>:18780/weekly/bit-weekly-<日期>.docx`（`BITFEED_FILES_BASE` 可改前缀），卡片里给下载链接，卡片正文只放本周要点和重点条目。
+
+两类来源的“本周”算法不同：
+
+- 公众号、学校与学院官网：按原文发布日落在上次汇总之后；页面没有日期的按首次收录日。Word 里按日期分组，一天一节。
+- 北理就业：这是常驻列表，抓到的时间不代表新。宣讲会、双选会、指导活动只看未来 8 天内的活动日期；招聘和实习岗位以「招聘有效开始」为发布日，本周新上的单列，一周内截止的再提醒一次；通知公告按发布日期。已经结束、取消或暂缓的不列入。
+
+学校模型每次最多看 120 条，逐条判断本周是否有用、是否优先，并写一句理由，再根据重点条目写本周要点。它有单独的每日额度（8 次，`weekly_calls`），不和日常分拣抢。模型判断没用的条目不删，放在 Word 末尾附录；模型不可用时全部保留，并在卡片和 Word 里写明。
+
+日期一律写全年月日。
 
 ## 故障定位
 

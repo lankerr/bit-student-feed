@@ -84,22 +84,45 @@ def hiagent_stream(response, deadline_seconds=240):
     return {"answer":"".join(pieces),"usage":tokens}
 
 
-def classify(store, contract_path=None, session=None, max_batches=None):
+def _contract(store, contract_path=None):
+    """Validated school contract and key, or a state dict explaining why not."""
     contract_path = contract_path or os.getenv("BIT_AGENT_CONTRACT")
     key = os.getenv("BIT_AGENT_API_KEY", "")
     if not key or not contract_path:
-        return {"state": "pending_configuration", "reason": "school API key/request contract missing", "classified": 0}
+        return None, None, None, {"state": "pending_configuration", "reason": "school API key/request contract missing"}
     if float(store.metadata().get("model_retry_after","0"))>time.time():
-        return {"state":"backoff","classified":0,"reason":"school API retry window has not elapsed"}
+        return None, None, None, {"state":"backoff","reason":"school API retry window has not elapsed"}
     contract = json.loads(Path(contract_path).read_text(encoding="utf-8-sig"))
-    url = contract.get("url", "")
-    parts = urlsplit(url)
+    parts = urlsplit(contract.get("url", ""))
     if parts.scheme != "https" or parts.hostname not in {"agent.bit.edu.cn","maas.bit.edu.cn"} or parts.username or parts.password or parts.query or parts.port not in (None,443):
         raise ValueError("school credentials may only be sent to the official school HTTPS API")
     if not contract.get("confirmed_from_platform") or not contract.get("model"):
         raise ValueError("confirm the platform request format and model before enabling")
     if parts.hostname == "maas.bit.edu.cn" and contract["model"] != "deepseek-v4-flash":
         raise ValueError("MaaS primary model must remain deepseek-v4-flash")
+    return contract, key, parts, None
+
+
+def ask(store, query, budget="weekly_calls", limit=8, contract_path=None, session=None, system=""):
+    """One school-model request outside the classification batches.
+
+    Uses its own daily counter so the weekly digest is not starved by the
+    classification timers that run earlier the same day.
+    """
+    contract, key, parts, state = _contract(store, contract_path)
+    if state:
+        raise RuntimeError(state["reason"])
+    http = session or requests.Session()
+    store.reserve_call(limit, budget)
+    data, model = _request(store, http, contract, key, parts, query, system,
+                           lambda: store.reserve_call(limit, budget))
+    return str(extract(data, contract.get("response_path", ""))), model
+
+
+def classify(store, contract_path=None, session=None, max_batches=None):
+    contract, key, parts, state = _contract(store, contract_path)
+    if state:
+        return dict(state, classified=0)
     batch_size = min(50, max(1, int(os.getenv("BIT_AGENT_BATCH_SIZE", "20"))))
     daily_limit = min(100, max(1, int(os.getenv("BIT_AGENT_DAILY_REQUEST_LIMIT", "20"))))
     char_budget = min(60000, max(2000, int(os.getenv("BIT_AGENT_MAX_INPUT_CHARS", "20000"))))
@@ -122,11 +145,6 @@ def classify(store, contract_path=None, session=None, max_batches=None):
             item["body"] = item["body"][:remaining]
             items.append(item)
         query = "BITFEED_CLASSIFY_V1\n" + SYSTEM + "\n北京时间：" + now_iso() + "\n数据：" + json.dumps(items, ensure_ascii=False)
-        replacements = {"api_key":key, "app_id":os.getenv("BIT_AGENT_APP_ID", ""), "query":query,
-                        "system":SYSTEM, "model":contract["model"]}
-        headers = render(contract["headers"], replacements)
-        if not any(key in str(v) for v in headers.values()):
-            raise ValueError("API key must be configured in an HTTP header")
         try:
             store.reserve_call(daily_limit)  # Failed/unknown calls count too; no automatic paid retries.
         except ValueError as exc:
@@ -135,75 +153,87 @@ def classify(store, contract_path=None, session=None, max_batches=None):
             budget_stop = True
             break
         calls += 1
-        if contract.get("transport") == "hiagent":
-            if parts.hostname != "agent.bit.edu.cn":
-                raise ValueError("HiAgent transport must use the official school host")
-            created = http.post("https://agent.bit.edu.cn/api/proxy/api/v1/create_conversation",
-                headers=headers, json={"UserID":"bitfeed-worker", "ConversationName":"公开消息批次分拣"},
-                timeout=(10,60), allow_redirects=False)
-            if created.status_code != 200:
-                raise RuntimeError(f"school conversation API returned HTTP {created.status_code}")
-            conversation = created.json()
-            business = conversation.get("BaseResp") or {}
-            if business.get("StatusCode",0) != 0:
-                raise RuntimeError("school conversation API reported a business error")
-            identifier = (conversation.get("Conversation") or {}).get("AppConversationID")
-            if not isinstance(identifier,str) or not identifier or len(identifier)>200:
-                raise RuntimeError("school conversation API returned no conversation ID")
-            replacements["conversation_id"] = identifier
-        payload = render(contract["body"], replacements)
-        if key in json.dumps(payload):
-            raise ValueError("API key is allowed only in headers")
-        retryable = False
-        streaming = contract.get("transport")=="hiagent" and payload.get("ResponseMode")=="streaming"
-        transient_reason="connection_error"
-        try:
-            response = http.post(url, headers=headers, json=payload, timeout=(10,60 if streaming else 180),
-                                 allow_redirects=False, **({"stream":True} if streaming else {}))
-            retryable = response.status_code in (429,500,502,503,504)
-            transient_reason="HTTP "+str(response.status_code)
-            if response.status_code==429:
-                retry_after=(getattr(response,"headers",{}) or {}).get("Retry-After","300")
-                retry_after=int(retry_after) if str(retry_after).isdigit() else 300
-                store.set_meta("model_retry_after",time.time()+max(60,min(retry_after,3600)))
-        except (requests.Timeout, requests.ConnectionError):
-            retryable = True
-            response = None
-        selected = contract["model"]
-        if retryable:
-            failures = int(store.metadata().get("primary_failures", "0")) + 1
-            store.set_meta("primary_failures", failures)
-            fallback = contract.get("fallback", {})
-            if failures < fallback.get("after_failures", 3) or not fallback.get("model"):
-                store.record_job("model_transport","failed",transient_reason)
-                raise RuntimeError("primary model temporarily unavailable ("+transient_reason+"); saved for a later run")
-            if parts.hostname != "maas.bit.edu.cn" or fallback["model"] != "qwen3.8-flash-next":
-                raise ValueError("fallback must be the configured school-only standby model")
-            store.reserve_call(min(2, fallback.get("max_requests_per_day",2)), "fallback_calls")
-            store.reserve_call(daily_limit)
-            calls += 1
-            selected = fallback["model"]
-            payload["model"] = selected
-            response = http.post(url, headers=headers, json=payload, timeout=(10,180), allow_redirects=False)
-        elif response is not None and response.status_code == 200:
-            store.set_meta("primary_failures", 0)
-        if response is None:
-            raise RuntimeError("school API connection failed")
-        if response.status_code != 200:
-            raise RuntimeError(f"school API returned HTTP {response.status_code}; response body omitted")
-        data = hiagent_stream(response) if streaming else response.json()
-        actual_model = data.get("model",selected)
-        if parts.hostname == "maas.bit.edu.cn" and actual_model not in contract.get("response_models", {}).get(selected,[selected]):
-            raise RuntimeError("MaaS response model differs from the configured model/version")
-        if contract.get("success_path"):
-            if extract(data, contract["success_path"]) != contract.get("success_value"):
-                raise RuntimeError("school API reported a business error; response body omitted")
+        data, actual_model = _request(store, http, contract, key, parts, query, SYSTEM,
+                                      lambda: store.reserve_call(daily_limit))
         result = clean_model_json(extract(data, contract.get("response_path", "")))
         total += store.apply_classifications(result, actual_model, [a["article_id"] for a in items])["classified"]
-        store.record_job("model_batch","ok",json.dumps({"requested_model":selected,"response_model":actual_model,
+        store.record_job("model_batch","ok",json.dumps({"requested_model":contract["model"],"response_model":actual_model,
                          "items":len(items),"usage":data.get("usage") or {k:data.get(k) for k in
                              ("total_tokens","input_tokens","output_tokens")}},ensure_ascii=False))
     outcome = {"state":"budget" if budget_stop and calls == 0 else "ok", "classified":total, "requests":calls}
     if budget_stop:
         outcome["reason"] = "daily model request budget reached"
     return outcome
+
+
+def _request(store, http, contract, key, parts, query, system, reserve_again):
+    """POST one query under the contract; returns (response data, answering model)."""
+    url = contract["url"]
+    replacements = {"api_key":key, "app_id":os.getenv("BIT_AGENT_APP_ID", ""), "query":query,
+                    "system":system, "model":contract["model"]}
+    headers = render(contract["headers"], replacements)
+    if not any(key in str(v) for v in headers.values()):
+        raise ValueError("API key must be configured in an HTTP header")
+    if contract.get("transport") == "hiagent":
+        if parts.hostname != "agent.bit.edu.cn":
+            raise ValueError("HiAgent transport must use the official school host")
+        created = http.post("https://agent.bit.edu.cn/api/proxy/api/v1/create_conversation",
+            headers=headers, json={"UserID":"bitfeed-worker", "ConversationName":"公开消息批次分拣"},
+            timeout=(10,60), allow_redirects=False)
+        if created.status_code != 200:
+            raise RuntimeError(f"school conversation API returned HTTP {created.status_code}")
+        conversation = created.json()
+        business = conversation.get("BaseResp") or {}
+        if business.get("StatusCode",0) != 0:
+            raise RuntimeError("school conversation API reported a business error")
+        identifier = (conversation.get("Conversation") or {}).get("AppConversationID")
+        if not isinstance(identifier,str) or not identifier or len(identifier)>200:
+            raise RuntimeError("school conversation API returned no conversation ID")
+        replacements["conversation_id"] = identifier
+    payload = render(contract["body"], replacements)
+    if key in json.dumps(payload):
+        raise ValueError("API key is allowed only in headers")
+    retryable = False
+    streaming = contract.get("transport")=="hiagent" and payload.get("ResponseMode")=="streaming"
+    transient_reason="connection_error"
+    try:
+        response = http.post(url, headers=headers, json=payload, timeout=(10,60 if streaming else 180),
+                             allow_redirects=False, **({"stream":True} if streaming else {}))
+        retryable = response.status_code in (429,500,502,503,504)
+        transient_reason="HTTP "+str(response.status_code)
+        if response.status_code==429:
+            retry_after=(getattr(response,"headers",{}) or {}).get("Retry-After","300")
+            retry_after=int(retry_after) if str(retry_after).isdigit() else 300
+            store.set_meta("model_retry_after",time.time()+max(60,min(retry_after,3600)))
+    except (requests.Timeout, requests.ConnectionError):
+        retryable = True
+        response = None
+    selected = contract["model"]
+    if retryable:
+        failures = int(store.metadata().get("primary_failures", "0")) + 1
+        store.set_meta("primary_failures", failures)
+        fallback = contract.get("fallback", {})
+        if failures < fallback.get("after_failures", 3) or not fallback.get("model"):
+            store.record_job("model_transport","failed",transient_reason)
+            raise RuntimeError("primary model temporarily unavailable ("+transient_reason+"); saved for a later run")
+        if parts.hostname != "maas.bit.edu.cn" or fallback["model"] != "qwen3.8-flash-next":
+            raise ValueError("fallback must be the configured school-only standby model")
+        store.reserve_call(min(2, fallback.get("max_requests_per_day",2)), "fallback_calls")
+        reserve_again()
+        selected = fallback["model"]
+        payload["model"] = selected
+        response = http.post(url, headers=headers, json=payload, timeout=(10,180), allow_redirects=False)
+    elif response is not None and response.status_code == 200:
+        store.set_meta("primary_failures", 0)
+    if response is None:
+        raise RuntimeError("school API connection failed")
+    if response.status_code != 200:
+        raise RuntimeError(f"school API returned HTTP {response.status_code}; response body omitted")
+    data = hiagent_stream(response) if streaming else response.json()
+    actual_model = data.get("model",selected)
+    if parts.hostname == "maas.bit.edu.cn" and actual_model not in contract.get("response_models", {}).get(selected,[selected]):
+        raise RuntimeError("MaaS response model differs from the configured model/version")
+    if contract.get("success_path"):
+        if extract(data, contract["success_path"]) != contract.get("success_value"):
+            raise RuntimeError("school API reported a business error; response body omitted")
+    return data, actual_model

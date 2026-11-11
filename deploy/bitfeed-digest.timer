@@ -1,8 +1,8 @@
 [Unit]
-Description=Feishu digest every Thursday and Sunday at 12:00 Beijing time
+Description=Weekly Feishu digest every Sunday at 12:00 Beijing time
 
 [Timer]
-OnCalendar=Thu,Sun *-*-* 04:00:00 UTC
+OnCalendar=Sun *-*-* 04:00:00 UTC
 Persistent=true
 Unit=bitfeed-digest.service
 
