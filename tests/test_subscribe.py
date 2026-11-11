@@ -304,6 +304,20 @@ class DigestAlertTest(unittest.TestCase):
         alerts.run(self.store, weread, wechat, send=send)
         self.assertEqual(sent[-1], "北理消息站 · 已恢复")
 
+    def test_public_collection_alerts_on_a_stalled_run_or_a_long_failing_source_but_not_a_page_cap(self):
+        now = time.time()
+        iso = lambda hours: datetime.fromtimestamp(now - hours * 3600, TZ).isoformat(timespec="seconds")
+        audit = [{"name": "数学学院", "state": "partial", "last_successful_at": iso(1)},
+                 {"name": "外国语学院", "state": "error", "last_successful_at": iso(60)}]
+        meta = {"last_collection": iso(1), "source_audit": json.dumps(audit, ensure_ascii=False)}
+        found = alerts.public_conditions(meta, now)
+        self.assertEqual(list(found), ["public_failing"])
+        self.assertIn("外国语学院", found["public_failing"][1])
+        self.assertNotIn("数学学院", found["public_failing"][1])
+        self.assertEqual(list(alerts.public_conditions(dict(meta, last_collection=iso(40)), now)), ["public_stalled"])
+        audit[1]["last_successful_at"] = iso(2)
+        self.assertEqual(alerts.public_conditions(dict(meta, source_audit=json.dumps(audit)), now), {})
+
 
 class RegistryTest(unittest.TestCase):
     def test_seed_accounts_have_unique_fakeids(self):

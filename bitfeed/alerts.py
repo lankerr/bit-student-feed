@@ -1,4 +1,4 @@
-"""Operations alerts: login expiry, quota back-off and stalled collection.
+"""Operations alerts: login expiry, quota back-off and stalled or failing collection.
 
 Each condition is sent at most every 12 hours while it lasts and a single
 recovery notice is sent when it clears. Alerts never contain credentials.
@@ -14,7 +14,8 @@ from .domain import TZ
 
 REPEAT = 12 * 3600
 LABELS = {"weread_login": "微信读书登录", "weread_quota": "微信读书频率限制", "weread_stalled": "公众号订阅采集",
-          "mp_login": "公众号后台登录", "mp_expiring": "公众号后台登录有效期"}
+          "mp_login": "公众号后台登录", "mp_expiring": "公众号后台登录有效期",
+          "public_stalled": "官网与就业网采集", "public_failing": "部分官网来源采集"}
 
 
 def _read(path):
@@ -26,6 +27,33 @@ def _read(path):
 
 def _when(ts):
     return datetime.fromtimestamp(float(ts), TZ).strftime("%m月%d日 %H:%M") if ts else "未知"
+
+
+def _stamp(value):
+    try:
+        return datetime.fromisoformat(str(value)).timestamp()
+    except ValueError:
+        return 0
+
+
+def public_conditions(meta, now):
+    """The daily server job reads the careers site and official websites; a page cap ("partial") is not a failure."""
+    found = {}
+    last = _stamp(meta.get("last_collection") or "")
+    if last and now - last > 36 * 3600:
+        found["public_stalled"] = ("官网与就业网采集停滞",
+                                   f"最近一次采集在 {_when(last)}，请检查服务器任务 bitfeed-daily。")
+        return found
+    try:
+        audits = json.loads(meta.get("source_audit") or "[]")
+    except ValueError:
+        audits = []
+    failing = [a.get("name") or a.get("id") for a in audits
+               if now - _stamp(a.get("last_successful_at") or "") > 48 * 3600]
+    if last and failing:
+        names = "、".join(failing[:8]) + (f" 等 {len(failing)} 个" if len(failing) > 8 else "")
+        found["public_failing"] = ("部分官网来源采集失败", f"{names}已超过两天没有成功采集，其他来源正常。")
+    return found
 
 
 def conditions(weread_root, wechat_root, now=None):
@@ -55,8 +83,8 @@ def conditions(weread_root, wechat_root, now=None):
 
 def run(store, weread_root, wechat_root, now=None, send=feishu.alert):
     now = now or time.time()
-    active = conditions(weread_root, wechat_root, now)
     meta = store.metadata()
+    active = {**conditions(weread_root, wechat_root, now), **public_conditions(meta, now)}
     sent = []
     for key, (title, text) in active.items():
         last = float(meta.get("alert:" + key) or 0)
