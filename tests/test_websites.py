@@ -138,6 +138,17 @@ class WebsitesTest(unittest.TestCase):
         data,_=self.run_collect({SOURCE["url"]:html})
         self.assertEqual(data["articles"][0]["publication_status"],"unknown")
 
+    def test_bare_list_date_at_the_edge_of_a_link_is_its_publication_date(self):
+        html='''<meta charset="utf-8"><ul>
+        <li><a href="a.htm">2026-11-06 学院推免生拟录取名单公示</a></li>
+        <li><a href="b.htm">学院举行研究生开学典礼暨新生入学教育 2025-09-15</a></li>
+        <li><a href="c.htm">2026-12-01 明天以后的日期不算发布日期</a></li></ul>'''
+        data,_=self.run_collect({SOURCE["url"]:html})
+        rows={a["url"].rsplit("/",1)[1]:a for a in data["articles"]}
+        self.assertEqual((rows["a.htm"]["source_publication_date"],rows["a.htm"]["title"]),("2026-11-06","学院推免生拟录取名单公示"))
+        self.assertEqual((rows["b.htm"]["source_publication_date"],rows["b.htm"]["title"]),("2025-09-15","学院举行研究生开学典礼暨新生入学教育"))
+        self.assertEqual(rows["c.htm"]["publication_status"],"unknown")
+
     def test_navigation_foreign_links_and_column_pages_are_excluded(self):
         html='''<meta charset="utf-8"><nav><a href="nav.htm">这是导航中的站点介绍页面</a></nav>
         <li>2026-11-09<a href="https://foreign.example/a.htm">外站页面不属于官方来源</a></li>

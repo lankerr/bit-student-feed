@@ -17,6 +17,7 @@ import requests
 TZ = timezone(timedelta(hours=8))
 USER_AGENT = "bit-student-feed/0.2 (+https://github.com/lankerr/bit-student-feed)"
 DATE_RE = re.compile(r"(?<!\d)(20\d{2})[\s年./-]+(\d{1,2})[\s月./-]+(\d{1,2})(?:日)?(?!\d)")
+EDGE_DATE_RE = re.compile(r"^(20\d{2}[-./]\d{1,2}[-./]\d{1,2})\s+(.+)$|^(.+?)\s+(20\d{2}[-./]\d{1,2}[-./]\d{1,2})$")
 DOC_RE = re.compile(r"\.s?html?$", re.I)
 LIST_FILE_RE = re.compile(r"^(?:index|list|default|channel|more)(?:[_-]?\d+)?\.s?html?$", re.I)
 NEXT_TEXT_RE = re.compile(r"^(?:下[一]?页|下一頁|下頁|next(?:\s+page)?|[›»>]+)$", re.I)
@@ -246,6 +247,17 @@ def _parse_page(content, source, url, current):
             continue
         seen.add(link)
         when = _row_date(anchor, url, title, current)
+        if not when and not anchor.get("title"):
+            # Lists that print the date inside the link without a date class put a bare
+            # numeric date at one edge; a headline date ("12月1日讲座") is an event date.
+            edge = EDGE_DATE_RE.match(title)
+            if edge:
+                stamp, rest = (edge[1], edge[2]) if edge[1] else (edge[4], edge[3])
+                when = _single_date(stamp, current)
+                if when and len(rest.strip()) >= 6:
+                    title = rest.strip()
+                else:
+                    when = None
         day, evidence = when if when else (None, "")
         published = int(datetime.fromisoformat(day).replace(tzinfo=TZ).timestamp()) if day else int(current.timestamp())
         body = title + (("\n官网列表发布日期（非活动日期）：" + evidence) if evidence else "\n官网列表未提供可核验的完整发布日期。")
