@@ -262,6 +262,15 @@ class DigestAlertTest(unittest.TestCase):
         self.assertGreater(document.find("秋日的校园"), document.find("参考价值较低"))
         self.assertIn("job.bit.edu.cn", rels)
 
+    def test_cut_off_model_answer_keeps_the_verdicts_that_arrived_whole(self):
+        entries = [{"id": i, "label": "每日", "source": "s", "date": "", "title": f"t{i}"} for i in range(1, 4)]
+        cut = '{"items":[{"n":1,"keep":false,"star":false,"note":"回顾"},{"n":2,"keep":true,"star":true,"note":"可报名"},{"n":3,"ke'
+        verdicts, summary, state = digest._editor(self.store, entries, ask=lambda *a, **k: (cut, "school"))
+        self.assertEqual(verdicts[1]["keep"], False)
+        self.assertEqual(verdicts[2]["star"], True)
+        self.assertNotIn(3, verdicts)
+        self.assertEqual(state, "partial")
+
     def test_window_advances_only_after_delivery_and_model_trouble_keeps_everything(self):
         def broken(*args, **kwargs):
             raise RuntimeError("school API unavailable")
