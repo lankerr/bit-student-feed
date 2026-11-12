@@ -74,6 +74,32 @@ class PlanningTest(unittest.TestCase):
         self.assertEqual([a['id'] for a in first['week3']],['still-open'])
         self.assertEqual([a['id'] for a in second['week2']],['still-open'])
 
+    def test_partial_registration_deadline_expires_before_the_future_event(self):
+        item=self.item('操舞比赛','2026-11-28',body='各队伍选出一名领队于11月13日前填写问卷报名，并扫码进通知群。')
+        _,thursday=select([item],datetime(2026,11,12,12,tzinfo=TZ).timestamp())
+        row=thursday['urgent'][0]
+        self.assertEqual(row['deadline'],'2026-11-13')
+        self.assertIn('未写年份',row['scope_note'])
+        self.assertIn('11月13日前',row['deadline_evidence'])
+        _,saturday=select([item],self.now)
+        self.assertFalse(any(saturday.values()))
+
+    def test_registration_range_uses_its_end_and_keeps_the_original_quote(self):
+        item=self.item('选调报名','2026-12-06',body='考生于2026年11月10日10:00—11月20日20:00期间登录网上报名服务平台进行注册。')
+        _,g=select([item],self.now)
+        self.assertEqual(g['week1'][0]['deadline'],'2026-11-20')
+
+    def test_partial_deadline_year_rollover_clock_and_ambiguity(self):
+        item=self.item('跨年报名','2027-01-10',body='报名截止：12月31日17:00')
+        before=datetime(2026,12,31,16,tzinfo=TZ).timestamp()
+        _,g=select([item],before)
+        self.assertEqual(g['urgent'][0]['deadline'],'2026-12-31')
+        _,g=select([item],before+3600)
+        self.assertFalse(any(g.values()))
+        uncertain=self.item('大赛报名','2026-11-28',published_days_ago=2,body='本科生报名截止11月20日，研究生报名截止11月22日。')
+        _,g=select([uncertain],self.now)
+        self.assertEqual([a['id'] for a in g['leads']],['大赛报名'])
+
     def test_preview_generation_has_no_delivery_side_effect(self):
         with tempfile.TemporaryDirectory() as tmp:
             store=Store(Path(tmp)/'data')

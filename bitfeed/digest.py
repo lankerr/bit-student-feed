@@ -186,6 +186,8 @@ def write_docx(digest, path):
             if a["summary"]:
                 doc.paragraph(a["summary"])
             doc.paragraph(a["next_step"]+" "+a["scope_note"], note=True)
+            if a.get("deadline_year_inferred"):
+                doc.paragraph("截止原文："+a["deadline_evidence"], note=True)
             if v.get("keep") is False:
                 doc.paragraph("编辑复核提示："+(v.get("note") or "模型建议复核，原有日期核验条目予以保留。"), note=True)
     doc.heading(f"附录  待核实线索  {len(groups['leads'])} 条")
