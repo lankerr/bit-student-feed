@@ -11,6 +11,7 @@ JOB_SOURCES = {"招聘职位", "实习信息"}
 SKIP = re.compile(r"圆满|落幕|收官|回顾|喜报|荣获|祝贺|采购|招标|中标|成交|比选|询价|磋商|更正公告|结果公告|暂缓举办|延期举办|取消举办")
 START = re.compile(r"活动开始（官网字段）：(\d{4}-\d{2}-\d{2})")
 END = re.compile(r"(?:招聘有效截止|活动结束)（官网字段）：(\d{4}-\d{2}-\d{2})")
+STATUS = re.compile(r"官网显示状态（须结合日期核对）：([^\n]+)")
 LABELS = {"urgent": "下周前需办理", "week1": "下周", "week2": "下下周", "week3": "下下下周",
           "later": "更长期预告与开放申请", "leads": "待核实线索"}
 PARTIAL_DATE = re.compile(r"(?:(?P<year>20\d{2})年)?(?P<month>\d{1,2})月(?P<day>\d{1,2})日"
@@ -95,6 +96,11 @@ def select(items, now):
             match = START.search(body)
             event = match.group(1) if match else None
             verified = bool(event)
+            status = STATUS.search(body)
+            if status and re.search(r"已结束|已取消|暂停|延期", status.group(1)):
+                # A future date alongside a closed status is a source conflict.
+                verified = False
+                c = dict(c, planning_note="官网日期在未来，但状态标为"+status.group(1).strip()+"，须向主办方核实")
         if verified and event and not deadline:
             cutoff = registration_cutoff(body, event)
             if cutoff and cutoff.get('ambiguous'):
@@ -115,6 +121,9 @@ def select(items, now):
             end_match=END.search(body)
             closing_soon=bool(end_match and today<=end_match.group(1)<=span['end'])
             useful_title = is_job or re.search(r"讲座|报名|征稿|论坛|竞赛|大赛|招募|申请|奖学金|宣讲|双选", title)
+            years = [int(y) for y in re.findall(r"(?<!\d)20\d{2}(?!\d)", title)]
+            if re.search(r"公示|通过名单|评选结果|档案", title) or years and max(years) < local.year:
+                useful_title = False
             if (recent or closing_soon) and useful_title:
                 groups["leads"].append(_entry(item, c, "", event, deadline, False))
             continue
@@ -155,6 +164,8 @@ def _entry(item, c, due, event, deadline, verified):
         "具体投递要求以招聘正文为准" if is_job else "报名资格、名额及临时调整请核对原文")
     if c.get('deadline_year_inferred'):
         note += "；截止日期原文未写年份，按同文活动日期归年，见截止原文"
+    if c.get('planning_note'):
+        note += "；"+c['planning_note']
     return {"id": item["id"], "title": item["title"], "url": item["url"], "source": item["source"],
             "fact": due, "when": "；".join(parts), "event_date": event, "deadline": deadline,
             "event_evidence": c.get("event_date_evidence") or _field(body, "活动开始（官网字段）"),

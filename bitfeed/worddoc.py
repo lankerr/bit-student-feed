@@ -21,7 +21,7 @@ STYLES = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:sz w:val="21"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="80" w:line="300" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults>
 <w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/></w:style>
 <w:style w:type="paragraph" w:styleId="Title"><w:name w:val="Title"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:after="200"/></w:pPr><w:rPr><w:b/><w:sz w:val="36"/></w:rPr></w:style>
-<w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:basedOn w:val="Normal"/><w:pPr><w:keepNext/><w:spacing w:before="320" w:after="120"/><w:outlineLvl w:val="0"/></w:pPr><w:rPr><w:b/><w:color w:val="1F4E79"/><w:sz w:val="30"/></w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:basedOn w:val="Normal"/><w:pPr><w:keepNext/><w:spacing w:before="320" w:after="120"/><w:outlineLvl w:val="0"/></w:pPr><w:rPr><w:b/><w:color w:val="000000"/><w:sz w:val="30"/></w:rPr></w:style>
 <w:style w:type="paragraph" w:styleId="Heading2"><w:name w:val="heading 2"/><w:basedOn w:val="Normal"/><w:pPr><w:keepNext/><w:spacing w:before="200" w:after="80"/><w:outlineLvl w:val="1"/></w:pPr><w:rPr><w:b/><w:sz w:val="24"/></w:rPr></w:style>
 <w:style w:type="paragraph" w:styleId="Note"><w:name w:val="Note"/><w:basedOn w:val="Normal"/><w:rPr><w:color w:val="666666"/><w:sz w:val="18"/></w:rPr></w:style>
 <w:style w:type="character" w:styleId="Hyperlink"><w:name w:val="Hyperlink"/><w:rPr><w:color w:val="0563C1"/><w:u w:val="single"/></w:rPr></w:style>
@@ -36,11 +36,11 @@ class Document:
         props = "<w:rPr><w:b/></w:rPr>" if bold else ""
         return f'<w:r>{props}<w:t xml:space="preserve">{escape(str(text))}</w:t></w:r>'
 
-    def _para(self, inner, style=None, indent=False):
+    def _para(self, inner, style=None, indent=False, keep_next=False):
         props = ""
-        if style or indent:
+        if style or indent or keep_next:
             props = "<w:pPr>" + (f'<w:pStyle w:val="{style}"/>' if style else "") + (
-                '<w:ind w:left="360" w:hanging="200"/>' if indent else "") + "</w:pPr>"
+                '<w:ind w:left="360" w:hanging="200"/>' if indent else "") + ('<w:keepNext/>' if keep_next else '') + "</w:pPr>"
         self.body.append(f"<w:p>{props}{inner}</w:p>")
 
     def title(self, text):
@@ -52,7 +52,7 @@ class Document:
     def paragraph(self, text, bold=False, note=False):
         self._para(self._run(text, bold), "Note" if note else None)
 
-    def item(self, title, url=None, detail=""):
+    def item(self, title, url=None, detail="", keep_next=False):
         """One bulleted entry: linked title, then grey detail text."""
         parts = [self._run("• ")]
         if url:
@@ -65,7 +65,7 @@ class Document:
         if detail:
             parts.append(f'<w:r><w:rPr><w:color w:val="666666"/><w:sz w:val="18"/></w:rPr>'
                          f'<w:t xml:space="preserve">  {escape(str(detail))}</w:t></w:r>')
-        self._para("".join(parts), indent=True)
+        self._para("".join(parts), indent=True, keep_next=keep_next)
 
     def save(self, path):
         document = ('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'

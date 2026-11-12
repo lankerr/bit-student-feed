@@ -161,7 +161,7 @@ def write_docx(digest, path):
     from .worddoc import Document
     doc = Document()
     groups, verdicts = digest["groups"], digest["verdicts"]
-    doc.title(digest["title"])
+    doc.title("北理未来三周活动预告")
     doc.paragraph("预告范围："+digest["period"]+"，另列下周前需办理及更长期事项。整理时间："+
                   digest["generated_at"]+"。按活动和报名截止日期筛选；较早发布但仍有效的机会继续保留。", note=True)
     doc.paragraph(_model_note(digest), note=True)
@@ -178,7 +178,7 @@ def write_docx(digest, path):
         for a in rows:
             v = verdicts.get(a["id"], {})
             detail = "；".join(x for x in (a["source"], a["when"], ("优先关注" if v.get("star") else "")) if x)
-            doc.item(a["title"], a["url"], detail)
+            doc.item(a["title"], a["url"], detail, keep_next=True)
             extra = "；".join(x for x in (("地点："+a["location"] if a["location"] else ""),
                                           ("对象："+a["audience"] if a["audience"] else "")) if x)
             if extra:

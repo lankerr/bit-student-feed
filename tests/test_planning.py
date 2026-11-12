@@ -89,6 +89,20 @@ class PlanningTest(unittest.TestCase):
         _,g=select([item],self.now)
         self.assertEqual(g['week1'][0]['deadline'],'2026-11-20')
 
+    def test_future_official_date_with_closed_status_needs_verification(self):
+        item=self.item('冬季双选会',None,published_days_ago=2,source='北理就业官网·双选会',
+                       body='活动开始（官网字段）：2026-11-25 14:00:00\n官网显示状态（须结合日期核对）：已结束')
+        _,g=select([item],self.now)
+        self.assertEqual([a['id'] for a in g['leads']],['冬季双选会'])
+        self.assertFalse(g['week2'])
+
+    def test_recent_import_does_not_make_old_or_result_notices_opportunities(self):
+        items=[self.item('2024年奖学金申请通知',None,published_days_ago=1),
+               self.item('2026年奖学金评选结果公示',None,published_days_ago=1),
+               self.item('2026年学术论坛报名通知',None,published_days_ago=1)]
+        _,g=select(items,self.now)
+        self.assertEqual([a['id'] for a in g['leads']],['2026年学术论坛报名通知'])
+
     def test_partial_deadline_year_rollover_clock_and_ambiguity(self):
         item=self.item('跨年报名','2027-01-10',body='报名截止：12月31日17:00')
         before=datetime(2026,12,31,16,tzinfo=TZ).timestamp()
