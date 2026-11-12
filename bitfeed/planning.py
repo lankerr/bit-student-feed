@@ -120,7 +120,7 @@ def select(items, now):
             recent = item.get("published_at", 0) >= now-21*86400
             end_match=END.search(body)
             closing_soon=bool(end_match and today<=end_match.group(1)<=span['end'])
-            useful_title = is_job or re.search(r"讲座|报名|征稿|论坛|竞赛|大赛|招募|申请|奖学金|宣讲|双选", title)
+            useful_title = is_job or kind in EVENT_SOURCES or re.search(r"讲座|报名|征稿|论坛|竞赛|大赛|招募|申请|奖学金|宣讲|双选", title)
             years = [int(y) for y in re.findall(r"(?<!\d)20\d{2}(?!\d)", title)]
             if re.search(r"公示|通过名单|评选结果|档案", title) or years and max(years) < local.year:
                 useful_title = False

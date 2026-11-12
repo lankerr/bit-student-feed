@@ -90,10 +90,10 @@ class PlanningTest(unittest.TestCase):
         self.assertEqual(g['week1'][0]['deadline'],'2026-11-20')
 
     def test_future_official_date_with_closed_status_needs_verification(self):
-        item=self.item('冬季双选会',None,published_days_ago=2,source='北理就业官网·双选会',
+        item=self.item('2027届毕业生冬季大型招聘会',None,published_days_ago=2,source='北理就业官网·双选会',
                        body='活动开始（官网字段）：2026-11-25 14:00:00\n官网显示状态（须结合日期核对）：已结束')
         _,g=select([item],self.now)
-        self.assertEqual([a['id'] for a in g['leads']],['冬季双选会'])
+        self.assertEqual([a['id'] for a in g['leads']],['2027届毕业生冬季大型招聘会'])
         self.assertFalse(g['week2'])
 
     def test_recent_import_does_not_make_old_or_result_notices_opportunities(self):
