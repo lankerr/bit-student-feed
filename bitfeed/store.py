@@ -1,9 +1,10 @@
 import json
 import sqlite3
 import time
+import re
 from contextlib import contextmanager
 from pathlib import Path
-from datetime import datetime
+from datetime import date, datetime
 
 from .domain import PROMPT_VERSION, TZ, normalize_article, now_iso, validate_classification
 
@@ -78,19 +79,34 @@ class Store:
         return {"imported": len(normalized), "added": added, "changed": changed}
 
     def candidates(self, limit=20, days=30):
+        if limit<=0:return []
         # Full-text WeRead articles must not be starved by the large career-list backlog:
         # available body + known publish time ranks first, then dated list metadata.
         with self.connection() as conn:
             rows = conn.execute('''SELECT a.* FROM articles a LEFT JOIN classifications c
-                ON c.article_id=a.id WHERE a.published_at>=? AND (a.source_expiry=0 OR a.source_expiry>=?) AND
+                ON c.article_id=a.id WHERE (a.published_at>=? OR a.source_expiry>? OR a.body_status='available') AND
+                (a.source_expiry=0 OR a.source_expiry>=?) AND
                 (c.article_id IS NULL OR c.source_hash!=a.source_hash OR c.prompt_version!=?)
                 ORDER BY CASE WHEN a.body_status='available' AND a.publication_status='known' THEN 0
                     WHEN a.body_status='structured_list_metadata' AND a.source_expiry>? THEN 1
                     WHEN a.publication_status='known' THEN 2
                     WHEN a.body_status='structured_list_metadata' THEN 3 ELSE 4 END,
-                    a.published_at DESC LIMIT ?''',
-                (int(time.time())-days*86400, int(time.time()), PROMPT_VERSION, int(time.time()), limit)).fetchall()
-        return [dict(row) for row in rows]
+                    a.published_at DESC''',
+                (int(time.time())-days*86400, int(time.time()), int(time.time()), PROMPT_VERSION, int(time.time()))).fetchall()
+        result=[]
+        cutoff=int(time.time())-days*86400
+        today=datetime.now(TZ).date()
+        for row in rows:
+            item=dict(row)
+            future=False
+            for y,m,d in re.findall(r'(20\d{2})[-/.年](\d{1,2})[-/.月](\d{1,2})(?:日)?',item.get('body') or ''):
+                try:
+                    if date(int(y),int(m),int(d))>=today:future=True;break
+                except ValueError:pass
+            if item['published_at']>=cutoff or item['source_expiry']>time.time() or future:
+                result.append(item)
+                if len(result)>=limit:break
+        return result
 
     def apply_classifications(self, data, model, expected=None):
         items = data.get("items")
@@ -122,7 +138,8 @@ class Store:
                 a.source_hash,a.origin,a.publication_status,a.body_status,a.source_expiry,
                 c.payload,c.model,c.source_hash AS classified_source_hash
                 FROM articles a LEFT JOIN classifications c ON c.article_id=a.id
-                WHERE a.published_at>=? AND (a.source_expiry=0 OR a.source_expiry>=?)
+                WHERE (a.published_at>=? OR a.source_expiry>0 OR c.payload IS NOT NULL)
+                AND (a.source_expiry=0 OR a.source_expiry>=?)
                 ORDER BY a.published_at DESC LIMIT ?''',
                 (int(time.time())-days*86400, int(time.time()), limit)).fetchall()
         results = []
@@ -136,6 +153,11 @@ class Store:
                 c = article["classification"]
                 if activity_expired(article):
                     c.update(event_status="expired", verified_activity=False, score=min(c["score"], 10))
+                elif article['source'] in ('北理就业官网·招聘职位','北理就业官网·实习信息') and article['body_status']=='structured_list_metadata':
+                    c.update(event_status='needs_verification',verified_activity=False,score=min(c['score'],40))
+            if article['published_at']<int(time.time())-days*86400 and not (
+                    article.get('source_expiry') or (article['classification'] or {}).get('verified_activity')):
+                continue
             results.append(article)
         return results
 

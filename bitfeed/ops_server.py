@@ -63,20 +63,33 @@ def status():
         running = {k: p.poll() is None for k, p in _running.items()}
     return {
         "weread": {"session": (scheduler.get("session") or {}).get("state", "unknown"),
+                   "usable": login_usable("weread"),
                    "checked_at": _when((scheduler.get("session") or {}).get("checked_at")),
                    "accounts": len(scheduler.get("accounts") or {}),
                    "healthy": sum(1 for r in records if r.get("state") == "ok"),
                    "cooldown_until": _when((scheduler.get("limits") or {}).get("cooldown_until"))
                        if float((scheduler.get("limits") or {}).get("cooldown_until", 0)) > time.time() else None,
                    "login": _read(WEREAD / "login-status.json").get("state"), "login_running": running.get("weread", False)},
-        "mp": {"session": keep.get("state", "unknown"), "checked_at": _when(keep.get("checked_at")),
+        "mp": {"session": keep.get("state", "unknown"), "usable": login_usable("mp"), "checked_at": _when(keep.get("checked_at")),
                "expires_at": _when(keep.get("expires_at")),
                "login": _read(WECHAT / "status.json").get("state"), "login_running": running.get("mp", False)}}
 
 
-def start_login(kind):
+def login_usable(kind, now=None):
+    now=time.time() if now is None else now
+    if kind == "weread":
+        value=_read(WEREAD/"scheduler.json").get("session") or {}
+        return value.get("state")=="ok" and float(value.get("checked_at") or 0)>=now-7200
+    value=_read(WECHAT/"keepalive.json")
+    return (value.get("state")=="ok" and float(value.get("checked_at") or 0)>=now-7200
+            and float(value.get("expires_at") or 0)>now)
+
+
+def start_login(kind, force=False):
     module, root, status_name, qr_name, wait = _login(kind)
     with _lock:
+        if not force and login_usable(kind):
+            return False
         process = _running.get(kind)
         if process is not None and process.poll() is None:
             return False
@@ -178,6 +191,8 @@ async function refresh(){const s=await (await fetch(base+'status.json',{cache:'n
  const w=document.getElementById('weread');w.replaceChildren();row(w,'会话',names[s.weread.session]||s.weread.session);row(w,'最近检查',s.weread.checked_at);row(w,'订阅',s.weread.healthy+' / '+s.weread.accounts+' 个号正常');if(s.weread.cooldown_until)row(w,'限流暂停至',s.weread.cooldown_until);
  const m=document.getElementById('mp');m.replaceChildren();row(m,'会话',names[s.mp.session]||s.mp.session);row(m,'最近续期',s.mp.checked_at);row(m,'有效期至',s.mp.expires_at);
  for(const kind of ['weread','mp']){const box=document.getElementById('qr-'+kind);const st=s[kind].login;const sess=s[kind].session;
+  const button=document.querySelector('button[data-kind="'+kind+'"]');button.disabled=s[kind].usable||s[kind].login_running;button.textContent=s[kind].usable?'登录有效，无需扫码':(kind==='weread'?'扫码登录微信读书':'扫码登录格拉摩根的指挥官');
+  if(s[kind].usable){box.replaceChildren();continue;}
   if(['auth_missing','auth_expired'].includes(sess)&&!s[kind].login_running&&!box.dataset.autostarted){box.dataset.autostarted=1;box.dataset.started=1;fetch(base+'login/'+kind,{method:'POST'});}
   if(s[kind].login_running&&['ready','qr_expired_regenerating','scanned','starting'].includes(st)){box.innerHTML='<img alt="登录二维码" src="'+base+'qr/'+kind+'.png?'+Date.now()+'"><div>'+(names[st]||st)+'</div>'}
   else if(st&&box.dataset.started){box.innerHTML='<div class="'+(st==='authorized'?'ok':'bad')+'">'+(names[st]||st)+'</div>'}}}
@@ -220,8 +235,8 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         parts = urlsplit(self.path)
         if parts.path == "/health":
-            return self._send(200, {"ok": True, "role": "public-article-index", "schedule": "Sun 12:00 Asia/Shanghai"})
-        weekly = re.fullmatch(r"/weekly/(bit-weekly-\d{4}-\d{2}-\d{2}\.docx)", parts.path)
+            return self._send(200, {"ok": True, "role": "public-article-index", "schedule": "Sat 12:00 Asia/Shanghai; future three weeks preview"})
+        weekly = re.fullmatch(r"/weekly/(bit-(?:weekly|preview)-(?:\d{4}-\d{2}-\d{2}|latest)\.docx)", parts.path)
         if weekly:
             try:
                 data = (SITE / "weekly" / weekly.group(1)).read_bytes()
@@ -263,7 +278,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._receipt()
         sub = self._ops(parts.path)
         if sub in ("/login/weread", "/login/mp"):
-            return self._send(200, {"started": start_login(sub[7:])})
+            kind=sub[7:]
+            return self._send(200, {"started": start_login(kind), "already_authorized": login_usable(kind)})
         if sub == "/accounts":
             size = int(self.headers.get("Content-Length", "0") or 0)
             try:

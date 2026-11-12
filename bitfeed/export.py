@@ -42,14 +42,16 @@ def public_data(store):
                            "notice":"公众号经微信读书订阅，接口每次只返回各号最新一篇；多图文推送的第二篇及以后可能遗漏。"},
         "classifier": {"configured":any(a["classification"] for a in articles),
                        "pending":sum(not a["classification"] for a in articles)},
+        "weekly_preview":json.loads(metadata.get("weekly_preview") or '{"available":false}'),
         "schedule":{"site":"每日更新", "wechat":"每 5 分钟分批轮询，各号 1～8 小时一次",
-                    "feishu":"每周日 12:00（北京时间），附 Word 完整版"},
+                    "weekly":"每周六 12:00（北京时间）生成下周一至第三个周日的预告，保留更长期有效事项",
+                    "feishu":"按需手动发布；周六定时任务只生成预告，不自动群发"},
         "articles":articles}
 
 
 def validate_public_data(data):
     if set(data)-{"schema_version","generated_at","collection","coverage","sources","wechat_registry",
-                  "classifier","schedule","articles"}:
+                  "classifier","schedule","weekly_preview","articles"}:
         raise ValueError("unexpected top-level fields in public export")
     if data.get("schema_version") != 2 or not isinstance(data.get("articles"), list):
         raise ValueError("unsupported public export")

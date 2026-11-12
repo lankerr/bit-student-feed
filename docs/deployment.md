@@ -27,9 +27,9 @@ journalctl -u bitfeed-wechat.service -n 20 --no-pager
 | `bitfeed-web.service` | 0.0.0.0:18780：`/health`、`/site-data.json`、`/feed.json`、`/weekly/<周报>.docx`、`/test-receipts`、`/ops/<口令>/` |
 | `bitfeed-wechat.timer` | 每 5 分钟一次微信读书订阅（`python -m bitfeed wechat-sync`） |
 | `bitfeed-keepalive.timer` | 每 30 分钟：微信读书 `shelf/sync` 续期 + 公众号后台首页续期，然后检查提醒 |
-| `bitfeed-refresh.timer` | 每 2 小时及周日 11:40：分拣与导出（`refresh`，每次最多 3 批） |
+| `bitfeed-refresh.timer` | 每 2 小时及周六 11:40：分拣与导出（`refresh`，每次最多 3 批） |
 | `bitfeed-daily.timer` | 每天 07:50：就业网与官网采集、分拣、导出（`server-daily`） |
-| `bitfeed-digest.timer` | 每周日 12:00：一周汇总与 Word 完整版（`feishu-digest`） |
+| `bitfeed-digest.timer` | 每周六 12:00：生成未来三周预告与 Word（`weekly-preview --no-model`），不自动群发 |
 
 旧的 `bitfeed-pipeline.service`（读本机微信导出的测试接口）已停用，`/feed.json` 改由新服务从线上数据库提供，格式不变。
 
@@ -86,20 +86,21 @@ BITFEED_DIGEST_MODE=production
 
 运维提醒想单独发到另一个群时，设置 `FEISHU_OPS_WEBHOOK`。发送结果以飞书返回的 `code=0` 为准；超时记为 `unknown`，不会自动重发。同一批文章不会重复发送，汇总窗口只在送达后前移。
 
-### 一周汇总
+### 周六的未来三周预告
 
-每个群从北京时间周日 12:00 起算一个发送周期。周期内重跑会读取原回执。已送达的周报保留原 Word 和统计截止时间。机器人明确拒收后，修正原因可以重跑。若回执是 `unknown` 或 `sending`，命令返回失败，需先到群内核对，避免重复发送。
+每周六12:00（北京时间）执行 `weekly-preview --no-model`，11:40先刷新分类，12:20更新GitHub Pages。自动任务只生成内容，不发送群消息。
 
-每周日 12:00 发一次。飞书自定义机器人不能发送文件，所以完整内容写成 Word，放在 `http://<VPS>:18780/weekly/bit-weekly-<日期>.docx`（`BITFEED_FILES_BASE` 可改前缀），卡片里给下载链接，卡片正文只放本周要点和重点条目。
+- 正文分为下周前需办理、下周、下下周、下下下周、更长期预告与开放申请。主窗口从下周一到第三个周日。
+- 2026年11月14日周六的预告为2026年11月16日至12月6日。报名截止更早的放在提前办理部分；有用的更长期安排单列。
+- 按活动日期和报名截止筛选，较早发布、上期已经出现、但仍有效的机会继续保留。收录时间和发布日期不替代活动日期。
+- 官网岗位列表有效期不等于实际投递截止。未核验正文的岗位作为待核实线索，不计入已核验预告。
+- 已结束、取消、暂缓、回顾和报名已截止的排除。模型可补充排序和复核意见，不能把规则已核验的条目悄悄删掉。
 
-两类来源的“本周”算法不同：
+文件：`/var/lib/bitfeed-pipeline/site/weekly/bit-preview-latest.docx`、按日期归档的Word及`preview.json`。公开下载路由 `/weekly/bit-preview-latest.docx`。运行 `python -m bitfeed weekly-preview --no-model --output /var/lib/bitfeed-pipeline/site` 可即时重建，不会发送消息。
 
-- 公众号、学校与学院官网：按原文发布日落在上次汇总之后；页面没有日期的按首次收录日。Word 里按日期分组，一天一节。
-- 北理就业：这是常驻列表，抓到的时间不代表新。宣讲会、双选会、指导活动只看未来 8 天内的活动日期；招聘和实习岗位以「招聘有效开始」为发布日，本周新上的单列，一周内截止的再提醒一次；通知公告按发布日期。已经结束、取消或暂缓的不列入。
+`feishu-digest`保留为人工明确要求时的可选发送命令，发送去重周期改为周六12:00，超时或未知回执仍须人工核对，不能盲目重发。
 
-学校模型每次最多看 120 条，逐条判断本周是否有用、是否优先，并写一句理由，再根据重点条目写本周要点。它有单独的每日额度（8 次，`weekly_calls`），不和日常分拣抢。模型判断没用的条目不删，放在 Word 末尾附录；模型不可用时全部保留，并在卡片和 Word 里写明。
-
-日期一律写全年月日。
+登录每30分钟自动保活；微信读书会话过期时尝试刷新并重放请求，公众号后台首页续期保存新Cookie。健康会话不会启动新的扫码任务，维护页显示“登录有效，无需扫码”。平台撤销会话、刷新凭据失效或要求重新验证时，仍需本人扫码授权。所有会话写入和生成任务必须以bitfeed用户运行。
 
 ## 故障定位
 

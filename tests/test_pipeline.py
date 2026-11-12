@@ -224,6 +224,27 @@ class PipelineTest(unittest.TestCase):
         self.store.import_articles([old,upcoming])
         self.assertEqual(self.store.candidates(1)[0]['url'],upcoming['url'])
 
+    def test_old_full_text_with_a_future_date_is_not_lost_to_the_post_age_cutoff(self):
+        self.store.import_articles([
+            source(url='https://cs.bit.edu.cn/future-old.htm',published_at=int(time.time())-120*86400,
+                   body='论坛征稿截止2099年12月1日，欢迎提交论文摘要'),
+            source(url='https://cs.bit.edu.cn/past-old.htm',published_at=int(time.time())-120*86400,
+                   body='活动于2020年12月1日举行')])
+        queued=self.store.candidates()
+        self.assertEqual([a['url'] for a in queued],['https://cs.bit.edu.cn/future-old.htm'])
+        a=queued[0]
+        self.store.apply_classifications({'items':[answer(a,deadline='2099-12-01',deadline_evidence='2099年12月1日')]},'editor')
+        self.assertIn(a['id'],{x['id'] for x in self.store.public_articles(days=90)})
+
+    def test_job_list_validity_does_not_become_a_verified_application_on_the_website(self):
+        self.store.import_articles([source(source='北理就业官网·招聘职位',body_status='structured_list_metadata',
+            body='招聘有效截止（官网字段）：2099-12-01',source_application_deadline='2099-12-01')])
+        a=self.store.candidates()[0]
+        self.store.apply_classifications({'items':[answer(a,category='career',deadline='2099-12-01',deadline_evidence='2099-12-01')]},'school')
+        c=self.store.public_articles()[0]['classification']
+        self.assertFalse(c['verified_activity'])
+        self.assertEqual(c['event_status'],'needs_verification')
+
     def test_model_queue_prioritizes_full_body_weread_over_career_list_backlog(self):
         career=source(url='https://job.bit.edu.cn/f/recruitmentFair/show?id=2',
             publication_status='unknown',body_status='structured_list_metadata',

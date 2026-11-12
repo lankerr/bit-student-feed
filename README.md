@@ -1,6 +1,6 @@
 # 北理消息站 · bit-student-feed
 
-把北理工分散的公开消息收到一处：就业网、学校与学院官网，以及各单位公众号。VPS 负责采集和保存，学校平台的 DeepSeek V4 Flash 负责分拣，结果每天发布成网页和 RSS，每周日中午 12 点在飞书群推送一周汇总，并附 Word 完整版。
+把北理工分散的公开消息收到一处：就业网、学校与学院官网，以及各单位公众号。VPS 负责采集和保存，学校平台的 DeepSeek V4 Flash 负责分拣，结果每天发布成网页和 RSS，每周六中午 12 点生成下周一至第三个周日的预告，附 Word 完整版，更长期有效事项另列。
 
 这是非官方学生项目，不读取任何人电脑上的微信或聊天记录。
 
@@ -40,7 +40,7 @@ flowchart LR
   S --> V
   V --> P[公开 JSON / RSS / 每日指引]
   P --> G[GitHub Pages]
-  V --> F[飞书 每周日 12:00 + Word]
+  V --> F[每周六 12:00 三周预告 + Word]
   V -.登录失效等.-> O[飞书运维提醒]
 ```
 
@@ -48,9 +48,9 @@ flowchart LR
 | --- | --- |
 | `bitfeed-wechat.timer` 每 5 分钟 | 微信读书订阅：每次最多 3 个请求，间隔 50～80 秒；限流后按 0.5→1→2→4→8→12 小时退避；再抓 1～2 篇公开文章正文 |
 | `bitfeed-keepalive.timer` 每 30 分钟 | 微信读书与「格拉摩根的指挥官」后台自动续期，失效则飞书提醒并在登录维护页自动出码 |
-| `bitfeed-refresh.timer` 每 2 小时、周日 11:40 | 学校模型分拣新消息，重新导出网页数据 |
+| `bitfeed-refresh.timer` 每 2 小时、周六 11:40 | 学校模型分拣新消息，重新导出网页数据 |
 | `bitfeed-daily.timer` 每天 07:50 | 采集就业网和官网，分拣并导出 |
-| `bitfeed-digest.timer` 每周日 12:00 | 一周汇总：飞书卡片放本周要点和重点条目，完整列表写成 Word（`/weekly/bit-weekly-日期.docx`）。公众号与官网按真实发布日；就业网宣讲会、双选会按活动日期，岗位按发布和截止日期；学校模型逐条判断本周是否有用 |
+| `bitfeed-digest.timer` 每周六 12:00 | 按活动与报名截止筛选未来三周，旧文章仍有效的继续保留；另列下周前需办理及更长期事项。生成 Word 与网页预告，自动任务不群发 |
 | `bitfeed-web.service` 常驻 | 公开导出 `site-data.json`、学校工作流用的 `feed.json`，以及登录维护页 |
 | GitHub Actions 每天 08:20 | 从 VPS 拉公开数据，构建网页 |
 
@@ -64,7 +64,7 @@ flowchart LR
 python -m pip install .
 python -m unittest discover -s tests -v
 python -m bitfeed --data ./data server-daily --career-pages 1 --web-pages 1 --output dist
-python -m bitfeed --data ./data feishu-digest --dry-run
+python -m bitfeed --data ./data weekly-preview --no-model --output dist
 ```
 
 运维见 [部署说明](docs/deployment.md)，公众号路线的调查与证据见 [订阅调查](docs/subscription-research.md)，学校接口见 [学校接口](docs/school-token.md)，历史名录见 [91 项公众号候选](docs/wechat-candidates.md)。
@@ -72,3 +72,5 @@ python -m bitfeed --data ./data feishu-digest --dry-run
 本轮重点范围、账号别名和双创渠道的边界见 [重点单位采集与联络](docs/priority-coverage.md)。原文明示具体结束时间的活动，当天到时即从可参加列表排除。
 
 `site_sources.py`、`collect_site_feed.py` 和 `sites-daily.yml` 来自并行开发的 bit-feed（ZCode），保留为手动查漏工具：搜狗结果是临时链接，只用于发现遗漏，不进入正式订阅。
+
+三周预告的规则、登录保活和无重复扫码说明见 [未来预告与登录维护](docs/forward-planning.md)。

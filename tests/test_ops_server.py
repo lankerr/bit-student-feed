@@ -88,6 +88,25 @@ class OpsServerTest(unittest.TestCase):
         self.assertEqual(popen.call_count, 1)
         ops_server._running.clear()
 
+    def test_healthy_logins_do_not_start_a_qr_job_or_replace_the_session(self):
+        import time
+        stamp=time.time()
+        (ops_server.WEREAD/'scheduler.json').write_text(json.dumps({'session':{'state':'ok','checked_at':stamp}}))
+        (ops_server.WECHAT/'keepalive.json').write_text(json.dumps({'state':'ok','checked_at':stamp,'expires_at':stamp+86400}))
+        for kind,root in [('weread',ops_server.WEREAD),('mp',ops_server.WECHAT)]:
+            session=root/'session.json';session.write_text('existing-session')
+            with mock.patch.object(ops_server.subprocess,'Popen') as popen:
+                status,body=self.get('/ops/'+TOKEN+'/login/'+kind,'POST')
+                self.assertEqual((status,json.loads(body)),(200,{'started':False,'already_authorized':True}))
+                popen.assert_not_called()
+            self.assertEqual(session.read_text(),'existing-session')
+
+    def test_preview_download_allows_only_the_named_public_documents(self):
+        folder=ops_server.SITE/'weekly';folder.mkdir()
+        (folder/'bit-preview-latest.docx').write_bytes(b'preview')
+        self.assertEqual(self.get('/weekly/bit-preview-latest.docx'),(200,b'preview'))
+        self.assertEqual(self.get('/weekly/../../weread/session.json')[0],404)
+
 
 if __name__ == "__main__":
     unittest.main()

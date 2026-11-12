@@ -19,6 +19,16 @@ function dateTime(value){if(!value)return '暂无成功记录';const d=new Date(
 function countText(value){return typeof value==='number'&&Number.isFinite(value)&&value>=0?String(value):'—';}
 function link(title,url){const a=el('a',title);const u=new URL(url);if(!['https:','http:'].includes(u.protocol)||u.username||u.password||!(u.hostname==='mp.weixin.qq.com'||u.hostname==='bit.edu.cn'||u.hostname.endsWith('.bit.edu.cn')))throw new Error('无效来源');a.href=url;a.target='_blank';a.rel='noopener noreferrer';return a;}
 
+function renderPreview(preview){
+  const box=$('weekly-preview');box.replaceChildren();const word=$('weekly-word');word.hidden=true;
+  if(!preview?.available){box.append(el('p','首期三周预告正在整理，已核验活动仍可在下方查询。'));return;}
+  box.append(el('p',preview.period+' · '+countText(preview.verified)+' 条日期已核验信息'));
+  const names={urgent:'下周前需办理',week1:'下周',week2:'下下周',week3:'下下下周',later:'更长期'};
+  box.append(el('p',Object.entries(names).map(([key,label])=>label+' '+countText(preview.counts?.[key])+' 条').join(' · ')));
+  box.append(el('p','整理时间 '+dateTime(preview.generated_at)+'；具体报名资格、名额和临时调整请核对原文。'));
+  try{const url=new URL(preview.docx_url);if(['http:','https:'].includes(url.protocol)&&!url.username&&!url.password&&url.hostname==='212.189.31.226'&&url.pathname==='/weekly/bit-preview-latest.docx'){word.href=url.href;word.hidden=false;}}catch{}
+}
+
 function sourceError(value){const raw=String(value||'');if(/^HTTP [1-5]\d\d$/.test(raw))return raw;const errors={Timeout:'请求超时',ReadTimeout:'读取超时',ConnectTimeout:'连接超时',ConnectionError:'连接失败',JSONDecodeError:'返回格式异常',ValueError:'列表或分页校验未通过'};return errors[raw]||(raw?'请求或解析失败':'');}
 function sourceBoundary(s){
   if(unconfigured(s))return '尚未接入，不计入已覆盖范围';
@@ -93,6 +103,7 @@ document.querySelectorAll('[data-copy]').forEach(b=>b.addEventListener('click',a
 (async()=>{
   try{
     const r=await fetch('data.json',{cache:'no-cache'});if(!r.ok)throw new Error('读取失败');const d=await r.json();if(d.schema_version!==2||!Array.isArray(d.articles))throw new Error('格式不兼容');articles=d.articles;
+    renderPreview(d.weekly_preview);
     const sources=renderSources(d),successes=sources.map(s=>s.last_successful_at).filter(v=>v&&!Number.isNaN(new Date(v).getTime())).sort((a,b)=>new Date(b)-new Date(a));
     const fresh=successes[0]||d.collection?.source_refreshed_at,age=fresh?(Date.now()-new Date(fresh).getTime())/3600000:Infinity;
     $('freshness').textContent=(fresh?(age>36?'采集更新需要检查 · 最近成功采集 ':'最近成功采集 ')+dateTime(fresh):'尚无成功采集时间记录')+' · 页面生成 '+dateTime(d.generated_at);

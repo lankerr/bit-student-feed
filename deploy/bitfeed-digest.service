@@ -1,5 +1,5 @@
 [Unit]
-Description=BIT feed: send the weekly Feishu digest and its Word file
+Description=BIT feed: generate the next three weeks planning preview
 After=network-online.target
 Wants=network-online.target
 
@@ -11,7 +11,7 @@ WorkingDirectory=/opt/bitfeed-site
 Environment=BITFEED_DATA=/var/lib/bitfeed-live
 Environment=BITFEED_SITE_DIR=/var/lib/bitfeed-pipeline/site
 EnvironmentFile=-/etc/bitfeed/runtime.env
-ExecStart=/opt/bitfeed-site/.venv/bin/python -m bitfeed feishu-digest
+ExecStart=/opt/bitfeed-site/.venv/bin/python -m bitfeed weekly-preview --no-model --output /var/lib/bitfeed-pipeline/site
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectHome=true

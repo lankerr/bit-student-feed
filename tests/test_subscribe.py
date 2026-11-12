@@ -199,7 +199,7 @@ class DigestAlertTest(unittest.TestCase):
         job = "https://job.bit.edu.cn/f/recruitmentinfo/show?recruitmentId="
         self.store.import_articles([
             {"url": "https://mp.weixin.qq.com/s/aaaaaaaaaa1", "title": "2027届选调生宣讲会", "source": "北理就业",
-             "published_at": now - 3600, "origin": "weread"},
+             "published_at": now - 40*86400, "origin": "weread", "body": "活动日期："+day(3)},
             {"url": "https://mp.weixin.qq.com/s/aaaaaaaaaa2", "title": "篮球赛圆满落幕", "source": "BITYOUTH",
              "published_at": now - 3600, "origin": "weread"},
             {"url": "https://mp.weixin.qq.com/s/aaaaaaaaaa3", "title": "秋日的校园", "source": "北京理工大学",
@@ -207,7 +207,7 @@ class DigestAlertTest(unittest.TestCase):
             {"url": "https://www.bit.edu.cn/tzgg17/zcgg/x.htm", "title": "红外无损检测系统采购更正公告", "source": "北理工主页",
              "published_at": now - 3600, "kind": "site"},
             {"url": "https://math.bit.edu.cn/x.htm", "title": "关于开展第六届费振勇奖学金评选的通知", "source": "数学学院",
-             "published_at": now - 3600, "kind": "site"},
+             "published_at": now - 40*86400, "kind": "site", "body": "申请截止："+day(5)},
             {"url": "https://job.bit.edu.cn/f/recruitmentFair/show?id=talk1", "title": "某研究所2027届宣讲会",
              "source": "北理就业官网·宣讲会", "published_at": now, "publication_status": "unknown",
              "origin": "official_server", "kind": "official",
@@ -230,6 +230,16 @@ class DigestAlertTest(unittest.TestCase):
              "published_at": now - 40 * 86400, "origin": "official_server", "kind": "official",
              "body": f"招聘有效截止（官网字段）：{day(3)} 00:00:00",
              "source_application_deadline": f"{day(3)} 00:00:00"}])
+        answers=[]
+        for a in self.store.candidates():
+            if a['title'] not in ('2027届选调生宣讲会','关于开展第六届费振勇奖学金评选的通知'):
+                continue
+            scholarship='奖学金' in a['title']
+            answers.append({'article_id':a['id'],'source_hash':a['source_hash'],'category':'academic',
+                'event_status':'actionable','score':90,'confidence':.95,'summary':'活动与申请预告','next_step':'核对原文参与条件',
+                'reason':'原文日期明确','deadline':day(5) if scholarship else None,'deadline_evidence':day(5) if scholarship else '',
+                'event_date':None if scholarship else day(3),'event_date_evidence':'' if scholarship else day(3)})
+        self.store.apply_classifications({'items':answers},'fixture-editor')
 
     def tearDown(self):
         self.tmp.cleanup()
@@ -237,21 +247,19 @@ class DigestAlertTest(unittest.TestCase):
     def titles(self, built, group):
         return [a["title"] for a in built["groups"][group]]
 
-    def test_weekly_uses_publication_days_for_posts_and_event_days_for_the_careers_site(self):
+    def test_weekly_uses_future_action_dates_and_keeps_old_valid_posts(self):
         built = digest.build(self.store, use_model=False)
-        self.assertEqual(sorted(self.titles(built, "daily")),
-                         sorted(["2027届选调生宣讲会", "秋日的校园", "关于开展第六届费振勇奖学金评选的通知"]))
-        self.assertEqual(self.titles(built, "career_events"), ["某研究所2027届宣讲会"])
-        self.assertEqual(self.titles(built, "career_jobs"), ["本周新上的校园招聘"])
-        self.assertEqual(self.titles(built, "jobs_closing"), ["三天后截止的校园招聘"])
+        main=[a['title'] for key,rows in built['groups'].items() if key!='leads' for a in rows]
+        self.assertCountEqual(main,['2027届选调生宣讲会','关于开展第六届费振勇奖学金评选的通知','某研究所2027届宣讲会'])
+        self.assertCountEqual(self.titles(built,'leads'),['本周新上的校园招聘','三天后截止的校园招聘'])
         everything = json.dumps(built["groups"], ensure_ascii=False)
         for gone in ("圆满落幕", "采购", "暂缓举办", "一个多月前"):
             self.assertNotIn(gone, everything)
         text = digest.card(built, "http://example/weekly.docx")
-        self.assertIn("活动 " + digest._short(self.talk_day), text)
+        self.assertIn("活动 " + self.talk_day, text)
         self.assertRegex(digest._short(self.talk_day), r"^\d{4}年")
         self.assertIn("http://example/weekly.docx", text)
-        self.assertTrue(built["title"].startswith("北理一周汇总 · "))
+        self.assertTrue(built["title"].startswith("北理未来三周预告 · "))
         self.assertNotIn("暂缓举办", json.dumps(self.store.public_articles(days=4000), ensure_ascii=False))
 
     def test_model_verdicts_shape_the_card_and_the_word_file(self):
@@ -266,7 +274,7 @@ class DigestAlertTest(unittest.TestCase):
                 if not line[:1].isdigit():
                     continue
                 n, label, source, when, title = line.split("｜", 4)
-                items.append({"n": int(n), "keep": title != "秋日的校园", "star": "奖学金" in title,
+                items.append({"n": int(n), "keep": title != "2027届选调生宣讲会", "star": "奖学金" in title,
                               "note": "可申请" if "奖学金" in title else ""})
             return json.dumps({"items": items}), "school"
 
@@ -277,8 +285,8 @@ class DigestAlertTest(unittest.TestCase):
         self.assertEqual(calls, ["BITFEED_WEEKLY_V1", "BITFEED_WEEKLY_SUMMARY_V1"])
         text = send.call_args.kwargs["json"]["card"]["body"]["elements"][0]["content"]
         self.assertIn("本周重点是奖学金申请。", text)
-        self.assertIn("【本周重点】", text)
-        self.assertIn("费振勇奖学金评选的通知", text.split("【本周重点】")[1])
+        self.assertIn("【下周】", text)
+        self.assertIn("费振勇奖学金评选的通知", text)
         self.assertNotIn("秋日的校园", text)
         files = list((Path(self.tmp.name) / "site" / "weekly").glob("bit-weekly-*.docx"))
         self.assertEqual(len(files), 1)
@@ -287,9 +295,10 @@ class DigestAlertTest(unittest.TestCase):
             document = archive.read("word/document.xml").decode("utf-8")
             rels = archive.read("word/_rels/document.xml.rels").decode("utf-8")
         self.assertIn("本周新上的校园招聘", document)
-        self.assertIn("北理就业 · 未来一周的宣讲会与双选会", document)
-        self.assertIn("模型判断本周参考价值较低", document)
-        self.assertGreater(document.find("秋日的校园"), document.find("参考价值较低"))
+        self.assertIn("下周前需办理", document)
+        self.assertIn("编辑复核提示", document)
+        self.assertIn("2027届选调生宣讲会", document)
+        self.assertNotIn("秋日的校园", document)
         self.assertIn("job.bit.edu.cn", rels)
 
     def test_cut_off_model_answer_keeps_the_verdicts_that_arrived_whole(self):
@@ -312,29 +321,29 @@ class DigestAlertTest(unittest.TestCase):
             self.assertNotIn("digest:window_end", self.store.metadata())
             with mock.patch("requests.Session.post", return_value=Response({"code": 0})) as send:
                 digest.send(self.store, "test", ask=broken)
-        self.assertIn("未能参与筛选", send.call_args.kwargs["json"]["card"]["body"]["elements"][0]["content"])
+        self.assertIn("未能参与", send.call_args.kwargs["json"]["card"]["body"]["elements"][0]["content"])
         self.assertIn("digest:window_end", self.store.metadata())
         again = digest.build(self.store, use_model=False)
-        self.assertEqual(again["groups"]["daily"], [])
-        self.assertEqual(again["groups"]["career_jobs"], [])
-        self.assertEqual(self.titles(again, "career_events"), ["某研究所2027届宣讲会"])
+        main=[a['title'] for key,rows in again['groups'].items() if key!='leads' for a in rows]
+        self.assertIn('2027届选调生宣讲会',main)
+        self.assertIn('某研究所2027届宣讲会',main)
 
     def test_week_rollover_and_receipt_from_previous_release(self):
         from bitfeed.feishu import send
         wednesday = datetime(2026, 11, 11, 16, 52, tzinfo=TZ)
-        sunday = datetime(2026, 11, 15, 12, tzinfo=TZ).timestamp()
+        saturday = datetime(2026, 11, 14, 12, tzinfo=TZ).timestamp()
         with mock.patch("requests.Session.post", return_value=Response({"code": 0})) as post, \
                 mock.patch("bitfeed.feishu.now_iso", return_value=wednesday.isoformat()), \
                 mock.patch.object(digest, "SITE_DIR", Path(self.tmp.name)), \
                 mock.patch.object(digest, "_editor", return_value=({}, "", "skipped")):
             send(self.store, "legacy", ["old article", "weekly:2026-11-11"])
             with mock.patch.object(digest, "build", side_effect=AssertionError("already delivered")):
-                self.assertTrue(digest.send(self.store, now=sunday-1)["duplicate"])
-            self.assertFalse(digest.send(self.store, now=sunday)["duplicate"])
+                self.assertTrue(digest.send(self.store, now=saturday-1)["duplicate"])
+            self.assertFalse(digest.send(self.store, now=saturday)["duplicate"])
             with mock.patch.object(digest, "build", side_effect=AssertionError("already delivered")):
-                self.assertTrue(digest.send(self.store, now=sunday+86400)["duplicate"])
+                self.assertTrue(digest.send(self.store, now=saturday+86400)["duplicate"])
             self.assertEqual(post.call_count, 2)
-            self.assertEqual(int(self.store.metadata()["digest:window_end"]), sunday)
+            self.assertEqual(int(self.store.metadata()["digest:window_end"]), saturday)
 
     def test_ambiguous_weekly_receipt_survives_rerun(self):
         import requests

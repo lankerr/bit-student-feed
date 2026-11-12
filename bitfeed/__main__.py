@@ -59,6 +59,9 @@ def main():
     digest=sub.add_parser("feishu-digest",help="weekly digest to Feishu with a Word file")
     digest.add_argument("--mode",choices=("test","production"))
     digest.add_argument("--dry-run",action="store_true")
+    preview=sub.add_parser("weekly-preview",help="generate the next three weeks without sending messages")
+    preview.add_argument("--no-model",action="store_true")
+    preview.add_argument("--output",default="/var/lib/bitfeed-pipeline/site")
     args=parser.parse_args()
     if args.command=="build-site":
         print(json.dumps(build(read_json(args.source),args.output),ensure_ascii=False)); return 0
@@ -78,6 +81,11 @@ def main():
         return 0
     store=Store(args.data)
     result={}
+    if args.command=="weekly-preview":
+        from .digest import write_preview
+        result=write_preview(store,use_model=not args.no_model,directory=Path(args.output)/"weekly")
+        build(public_data(store),args.output)
+        print(json.dumps(result,ensure_ascii=False));return 0
     if args.command=="wechat-sync":
         from .subscribe import Worker
         print(json.dumps(Worker(store,WEREAD_DIR).run(args.calls,args.bodies,args.follows),ensure_ascii=False)); return 0
