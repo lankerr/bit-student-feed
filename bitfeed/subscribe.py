@@ -81,7 +81,7 @@ class Worker:
     def _load_state(self):
         try:
             state = json.loads(self.state_path.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
+        except FileNotFoundError:
             state = {}
         state.setdefault("session", {"state": "unknown"})
         state.setdefault("limits", {})
@@ -305,7 +305,7 @@ def ping_session(root, http=None, clock=time.time):
         with exclusive(root / ".scheduler.lock"):
             try:
                 state = json.loads((root / "scheduler.json").read_text(encoding="utf-8"))
-            except (OSError, ValueError):
+            except FileNotFoundError:
                 state = {}
             state.setdefault("session", {})
             state.setdefault("limits", {})

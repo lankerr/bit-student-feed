@@ -56,6 +56,32 @@ class WorkerTest(unittest.TestCase):
     def state(self):
         return json.loads((self.weread / "scheduler.json").read_text(encoding="utf-8"))
 
+    def test_unreadable_state_stops_worker_without_resetting_budget(self):
+        path = self.weread / "scheduler.json"
+        original = json.dumps({"limits": {"cooldown_until": self.clock.now + 3600, "calls": {"day": 599}}})
+        path.write_text(original)
+        worker = self.worker({})
+        with mock.patch.object(Path, "read_text", side_effect=PermissionError("state is not readable")):
+            with self.assertRaises(PermissionError):
+                worker.run(calls=3, bodies=0)
+        self.assertEqual(path.read_text(), original)
+        self.assertEqual(self.http.calls, [])
+        path.write_text("{broken")
+        with self.assertRaises(json.JSONDecodeError):
+            worker.run(calls=3, bodies=0)
+        self.assertEqual(path.read_text(), "{broken")
+
+    def test_keepalive_does_not_reset_unreadable_scheduler(self):
+        path = self.weread / "scheduler.json"
+        original = json.dumps({"limits": {"cooldown_until": self.clock.now + 3600}})
+        path.write_text(original)
+        http = HTTP({})
+        with mock.patch.object(Path, "read_text", side_effect=PermissionError("state is not readable")):
+            with self.assertRaises(PermissionError):
+                ping_session(self.weread, http=http, clock=self.clock)
+        self.assertEqual(path.read_text(), original)
+        self.assertEqual(http.calls, [])
+
     def test_follows_then_polls_and_imports_each_new_article_once(self):
         cover = {JOB: Response({"reviewId": JOB + "_OECV7K2xG9GXr3g5l~mg", "title": "宣讲会"}),
                  GSU: Response({"reviewId": GSU + "_abcdefgh12", "title": "研会活动"})}
