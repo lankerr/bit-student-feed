@@ -8,6 +8,7 @@ from shutil import copyfile
 from xml.etree import ElementTree as ET
 
 from .domain import TZ, now_iso, normalize_article, normalize_url
+from .activity_time import activity_expired
 
 LABELS = {"academic":"学术讲座", "competition":"竞赛创新", "career":"升学就业",
           "volunteer":"实践志愿", "campus_service":"校园服务", "other":"其他"}
@@ -104,6 +105,8 @@ def guidance(data):
     for article in data["articles"]:
         classification = article.get("classification") or {}
         if not classification.get("verified_activity"):
+            continue
+        if activity_expired(article):
             continue
         days = _marked_days(article)
         if any(day < today_iso for day in days):

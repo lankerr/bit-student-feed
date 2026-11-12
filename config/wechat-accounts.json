@@ -16,7 +16,7 @@
     {"name": "北理工数学学院", "fakeid": "Mzg4NjEyNzY0Ng==", "unit": "数学与统计学院", "tier": 1, "evidence": "关注列表 2026-11-03"},
     {"name": "BIT光电人", "fakeid": "Mzg4NzY5NjEzOA==", "unit": "光电学院", "tier": 1, "evidence": "关注列表 2026-11-03"},
     {"name": "BIT空天人", "fakeid": "MzA5OTAwOTUyOA==", "unit": "空天科学与技术学院", "tier": 1, "evidence": "关注列表 2026-11-03（原名 BIT宇航人）"},
-    {"name": "BIT空天驿站", "fakeid": "MzU2NDY1MDA4Ng==", "unit": "空天科学与技术学院", "tier": 1, "evidence": "关注列表 2026-11-03"},
+    {"name": "BIT空天驿站", "fakeid": "MzU2NDY1MDA4Ng==", "unit": "空天网络信息技术研究所", "tier": 1, "aliases": ["空天YZ"], "evidence": "2026-11-12公众平台搜索：现名空天YZ，微信号bit52lab，简介指向cnet.bit.edu.cn；同一fakeid沿用历史名"},
     {"name": "BIT睿信书院", "fakeid": "Mzg5MzcyNDI4MQ==", "unit": "睿信书院", "tier": 1, "evidence": "关注列表 2026-11-03"},
     {"name": "BIT北京学院", "fakeid": "Mzg2MDcwMjI1OQ==", "unit": "北京学院", "tier": 1, "evidence": "关注列表 2026-11-03"},
     {"name": "BIT卓然特立", "fakeid": "Mzg3OTE2MDU0MQ==", "unit": "徐特立学院/特立书院", "tier": 1, "evidence": "关注列表 2026-11-03"},
@@ -65,7 +65,9 @@
     {"name": "爱理心", "fakeid": "Mzg5NjY5ODYxMQ==", "unit": "心理健康教育与咨询中心", "tier": 1, "evidence": "公众平台搜索 2026-11-10 认证 bitxinli；简介写明北理工心理健康资讯平台"},
     {"name": "北理考研在线", "fakeid": "MzIzODgyOTI5Mw==", "unit": "非官方", "tier": 3, "evidence": "关注列表 2026-11-03；民间号默认不订阅"},
     {"name": "北理工PPT模板", "fakeid": "Mzg2NzYzNzM2MA==", "unit": "非官方", "tier": 3, "evidence": "关注列表 2026-11-03；民间号默认不订阅"},
-    {"name": "北理工居管会", "fakeid": "MzUzMDE2MzY1NQ==", "unit": "家属区居委会", "tier": 3, "evidence": "关注列表 2026-11-03；与学生事务关系弱"},
+    {"name": "北理工居管会", "fakeid": "MzUzMDE2MzY1NQ==", "unit": "家属区居委会", "tier": 1, "evidence": "关注列表 2026-11-03；2026-11-12用户点名要求纳入，已由停用改为启用"},
+    {"name": "Radar Club", "fakeid": "Mzg5NDIxNzYyMQ==", "unit": "雷达技术研究院/雷达俱乐部", "tier": 1, "aliases": ["雷达俱乐部"], "evidence": "2026-11-12公众平台搜索radar_club，简介为北理工雷达俱乐部；雷达院官网往次推送链接__biz一致：https://radar.bit.edu.cn/rcpy/xszz/ldjlb/3b6d417a594a4160b718aeafe4983d2b.htm"},
+    {"name": "北京理工大学招生办公室", "fakeid": "MzA3NzU0NTIyMQ==", "unit": "本科招生办公室", "tier": 1, "evidence": "2026-11-12公众平台搜索返回同名账号，verify_status=2，简介北京理工大学招生、宣传"},
     {"name": "栗子的北理日记", "fakeid": "MzYzNjU0MDkwOQ==", "unit": "非官方", "tier": 3, "evidence": "关注列表 2026-11-03；个人号默认不订阅"}
   ]
 }

@@ -116,6 +116,7 @@ class Store:
         return {"classified": len(validated), "verified_activities": sum(x["verified_activity"] for x in validated)}
 
     def public_articles(self, days=30, limit=5000):
+        from .activity_time import activity_expired
         with self.connection() as conn:
             rows = conn.execute('''SELECT a.id,a.title,a.url,a.source,a.published_at,a.kind,
                 a.source_hash,a.origin,a.publication_status,a.body_status,a.source_expiry,
@@ -133,10 +134,7 @@ class Store:
             article["date"] = datetime.fromtimestamp(article["published_at"], TZ).strftime("%Y-%m-%d")
             if article["classification"]:
                 c = article["classification"]
-                today = datetime.now(TZ).date().isoformat()
-                expiry = int(article.get("source_expiry") or 0)
-                official = datetime.fromtimestamp(expiry, TZ).date().isoformat() if expiry > 0 else ""
-                if (official and official < today) or any(c.get(k) and c[k] < today for k in ("deadline", "event_date")):
+                if activity_expired(article):
                     c.update(event_status="expired", verified_activity=False, score=min(c["score"], 10))
             results.append(article)
         return results

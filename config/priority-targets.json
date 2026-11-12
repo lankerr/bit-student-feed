@@ -1,0 +1,21 @@
+{
+  "checked_at": "2026-11-12",
+  "notice": "按单位管理。configured/followed/collected/authorized分别核验，不以公开可读代替转载授权。双创中心目前通过学生科协和创新孵化器采集，独立号仍待单位确认。",
+  "targets": [
+    {"unit":"北理就业","accounts":["北理就业"],"website":"https://job.bit.edu.cn/","contact_status":"待联系"},
+    {"unit":"双创中心","accounts":["北理工学生科协","北理工创新孵化器"],"scope":"双创信息渠道，中心独立公众号待确认","evidence":"https://bit.tiaozhanbei.net/d1717/contact_us","contact_status":"待确认独立号与供稿联系人"},
+    {"unit":"雷达俱乐部","accounts":["Radar Club"],"evidence":"https://radar.bit.edu.cn/rcpy/xszz/ldjlb/3b6d417a594a4160b718aeafe4983d2b.htm","contact_status":"待联系"},
+    {"unit":"空天网信所","accounts":["BIT空天驿站"],"current_name":"空天YZ","website":"https://cnet.bit.edu.cn/","contact_status":"待联系"},
+    {"unit":"北京学院","accounts":["BIT北京学院"],"contact_status":"待联系"},
+    {"unit":"徐特立学院/特立书院","accounts":["BIT卓然特立"],"contact_status":"待联系"},
+    {"unit":"精工书院","accounts":["BIT精工书院"],"contact_status":"待联系"},
+    {"unit":"睿信书院","accounts":["BIT睿信书院"],"contact_status":"待联系"},
+    {"unit":"求是书院","accounts":["BIT求是先声"],"contact_status":"待联系"},
+    {"unit":"明德书院","accounts":["BIT明德书院"],"contact_status":"待联系"},
+    {"unit":"知艺书院","accounts":["BIT设计知艺"],"contact_status":"待联系"},
+    {"unit":"本科招生办公室","accounts":["北京理工大学招生办公室"],"contact_status":"待联系"},
+    {"unit":"研究生招生办公室","accounts":["北京理工大学研究生招生"],"contact_status":"待联系"},
+    {"unit":"教育学院","accounts":["北京理工大学教育学院"],"contact_status":"待联系"},
+    {"unit":"北理工居委会","accounts":["北理工居管会"],"contact_status":"待联系"}
+  ]
+}

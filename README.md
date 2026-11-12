@@ -69,4 +69,6 @@ python -m bitfeed --data ./data feishu-digest --dry-run
 
 运维见 [部署说明](docs/deployment.md)，公众号路线的调查与证据见 [订阅调查](docs/subscription-research.md)，学校接口见 [学校接口](docs/school-token.md)，历史名录见 [91 项公众号候选](docs/wechat-candidates.md)。
 
+本轮重点范围、账号别名和双创渠道的边界见 [重点单位采集与联络](docs/priority-coverage.md)。原文明示具体结束时间的活动，当天到时即从可参加列表排除。
+
 `site_sources.py`、`collect_site_feed.py` 和 `sites-daily.yml` 来自并行开发的 bit-feed（ZCode），保留为手动查漏工具：搜狗结果是临时链接，只用于发现遗漏，不进入正式订阅。

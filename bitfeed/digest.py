@@ -21,6 +21,7 @@ import time
 
 from . import feishu
 from .domain import TZ, clean_model_json
+from .activity_time import activity_expired
 
 SITE = os.getenv("BITFEED_PUBLIC_URL", "https://lankerr.github.io/bit-student-feed/")
 FILES_BASE = os.getenv("BITFEED_FILES_BASE", "http://212.189.31.226:18780").rstrip("/")
@@ -94,6 +95,8 @@ def _place(item, since, today, horizon):
     since_day = _day(since)
     title, source = item["title"] or "", item["source"] or ""
     c = item["classification"] or {}
+    if activity_expired(item):
+        return None
     if SKIP.search(title) or c.get("event_status") in ("expired", "recap"):
         return None
     official = _official_day(item)
@@ -136,6 +139,8 @@ def _open_activities(items, today, horizon):
     picked = []
     for item in items:
         c = item["classification"] or {}
+        if activity_expired(item):
+            continue
         if not c.get("verified_activity") or (item["source"] or "").startswith(CAREER):
             continue
         days = [d for d in (c.get("deadline"), c.get("event_date"), _official_day(item)) if d]
