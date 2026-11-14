@@ -18,6 +18,11 @@ LABELS = {"weread_login": "微信读书登录", "weread_quota": "微信读书频
           "public_stalled": "官网与就业网采集", "public_failing": "部分官网来源采集"}
 
 
+def mp_required():
+    """Account discovery is optional; registered article collection uses WeRead."""
+    return os.getenv("BITFEED_MP_LOGIN_REQUIRED", "false").lower() == "true"
+
+
 def _read(path):
     try:
         return json.loads(Path(path).read_text(encoding="utf-8"))
@@ -72,10 +77,10 @@ def conditions(weread_root, wechat_root, now=None):
     if session == "ok" and last_ok and now - last_ok > 24 * 3600:
         found["weread_stalled"] = ("公众号订阅停滞", f"最近一次成功采集在 {_when(last_ok)}，请检查服务器任务 bitfeed-wechat。")
     keep = _read(Path(wechat_root) / "keepalive.json")
-    if keep.get("state") in ("auth_missing", "auth_expired"):
+    if mp_required() and keep.get("state") in ("auth_missing", "auth_expired"):
         found["mp_login"] = ("公众号后台登录已失效",
                              f"用于搜索和核验公众号的后台登录已失效，文章订阅不受影响。重新扫码：{scan}。")
-    elif keep.get("expires_at") and float(keep["expires_at"]) - now < 36 * 3600:
+    elif mp_required() and keep.get("expires_at") and float(keep["expires_at"]) - now < 36 * 3600:
         found["mp_expiring"] = ("公众号后台登录即将过期",
                                 f"自动续期未能延长有效期，将于 {_when(keep['expires_at'])} 过期。可提前扫码：{scan}。")
     return found
@@ -93,6 +98,10 @@ def run(store, weread_root, wechat_root, now=None, send=feishu.alert):
                 store.set_meta("alert:" + key, now)
                 sent.append(key)
     for key in [k[6:] for k in meta if k.startswith("alert:") and float(meta[k] or 0) > 0]:
+        if key in ("mp_login", "mp_expiring") and not mp_required():
+            # Changing an optional dependency must not produce a false recovery.
+            store.set_meta("alert:" + key, 0)
+            continue
         if key not in active:
             if send("北理消息站 · 已恢复", f"{LABELS.get(key, key)}已恢复正常。", template="green") == "sent":
                 store.set_meta("alert:" + key, 0)

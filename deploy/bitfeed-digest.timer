@@ -1,8 +1,8 @@
 [Unit]
-Description=Weekly planning preview every Saturday at 12:00 Beijing time
+Description=Weekly planning delivery every Saturday at 09:00 Beijing time
 
 [Timer]
-OnCalendar=Sat *-*-* 04:00:00 UTC
+OnCalendar=Sat *-*-* 01:00:00 UTC
 Persistent=true
 Unit=bitfeed-digest.service
 

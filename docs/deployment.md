@@ -27,9 +27,9 @@ journalctl -u bitfeed-wechat.service -n 20 --no-pager
 | `bitfeed-web.service` | 0.0.0.0:18780：`/health`、`/site-data.json`、`/feed.json`、`/weekly/<周报>.docx`、`/test-receipts`、`/ops/<口令>/` |
 | `bitfeed-wechat.timer` | 每 5 分钟一次微信读书订阅（`python -m bitfeed wechat-sync`） |
 | `bitfeed-keepalive.timer` | 每 30 分钟：微信读书 `shelf/sync` 续期 + 公众号后台首页续期，然后检查提醒 |
-| `bitfeed-refresh.timer` | 每 2 小时及周六 11:40：分拣与导出（`refresh`，每次最多 3 批） |
+| `bitfeed-refresh.timer` | 每 2 小时及周六 08:40：分拣与导出（`refresh`，每次最多 3 批） |
 | `bitfeed-daily.timer` | 每天 07:50：就业网与官网采集、分拣、导出（`server-daily`） |
-| `bitfeed-digest.timer` | 每周六 12:00：生成未来三周预告与 Word（`weekly-preview --no-model`），不自动群发 |
+| `bitfeed-digest.timer` | 每周六 09:00：生成并发送活动周报与Word（`weekly-send --no-model`），按群和周去重 |
 
 旧的 `bitfeed-pipeline.service`（读本机微信导出的测试接口）已停用，`/feed.json` 改由新服务从线上数据库提供，格式不变。
 
@@ -55,10 +55,10 @@ systemctl daemon-reload && systemctl restart bitfeed-web.service
 
 ## 登录维护
 
-两个登录平时自动续期。失效或即将过期时，飞书运维群会收到提醒和“登录维护”链接（即 `runtime.env` 里的 `BITFEED_OPS_URL`）。打开后：
+两个登录平时自动续期，先复用Cookie。微信读书采集失效时，飞书运维群会收到提醒和“登录维护”链接；公众号后台仅搜号时按需使用，默认不因其过期催扫码。维护链接（即 `runtime.env` 里的 `BITFEED_OPS_URL`）。打开后：
 
 - **扫码登录微信读书**：用任何微信扫码确认即可；新账号的书架为空时，订阅程序会自动重新关注名单里的号。
-- **扫码登录公众号后台**：用「格拉摩根的指挥官」的管理员微信。桌面上的「北理消息站-登录维护」快捷方式和订阅助手的「扫码登录」都打开同一页。
+- **扫码登录公众号后台**：用「格拉摩根的指挥官」的管理员微信。维护页支持手机访问；打开页面不自动给可选后台出码。点击登录会先尝试复用已有Cookie。
 - **添加订阅的公众号**：粘贴该号任意一篇文章链接，服务器从公开文章页读出账号身份，几分钟内开始订阅。
 
 不方便开网页时，也可以在服务器上运行：
@@ -88,7 +88,7 @@ BITFEED_DIGEST_MODE=production
 
 ### 周六的未来三周预告
 
-每周六12:00（北京时间）执行 `weekly-preview --no-model`，11:40先刷新分类，12:20更新GitHub Pages。自动任务只生成内容，不发送群消息。
+每周六09:00（北京时间）执行 `weekly-send --no-model`，08:40先刷新分类，09:20更新GitHub Pages。向既有信息收集群发送卡片与Word链接，回执未知时停止而不盲目重发。
 
 - 正文分为下周前需办理、下周、下下周、下下下周、更长期预告与开放申请。主窗口从下周一到第三个周日。
 - 2026年11月14日周六的预告为2026年11月16日至12月6日。报名截止更早的放在提前办理部分；有用的更长期安排单列。
@@ -98,7 +98,7 @@ BITFEED_DIGEST_MODE=production
 
 文件：`/var/lib/bitfeed-pipeline/site/weekly/bit-preview-latest.docx`、按日期归档的Word及`preview.json`。公开下载路由 `/weekly/bit-preview-latest.docx`。运行 `python -m bitfeed weekly-preview --no-model --output /var/lib/bitfeed-pipeline/site` 可即时重建，不会发送消息。
 
-`feishu-digest`保留为人工明确要求时的可选发送命令，发送去重周期改为周六12:00，超时或未知回执仍须人工核对，不能盲目重发。
+`feishu-digest`保留为人工明确要求时的可选发送命令，发送去重周期为周六09:00，超时或未知回执仍须人工核对，不能盲目重发。
 
 登录每30分钟自动保活；微信读书会话过期时尝试刷新并重放请求，公众号后台首页续期保存新Cookie。健康会话不会启动新的扫码任务，维护页显示“登录有效，无需扫码”。平台撤销会话、刷新凭据失效或要求重新验证时，仍需本人扫码授权。所有会话写入和生成任务必须以bitfeed用户运行。
 
@@ -108,7 +108,7 @@ BITFEED_DIGEST_MODE=production
 | --- | --- |
 | 公众号长时间没有新文章 | 登录维护页的会话状态；`scheduler.json` 中的 `cooldown_until`、各号 `state`/`error` |
 | 微信读书显示已失效 | 打开登录维护页（会自动出码）用微信扫码；平时由 `bitfeed-keepalive` 续期，不必反复扫 |
-| 公众号后台显示即将过期 | `keepalive.json` 的 `expires_at` 应在每次续期后顺延 4 天；不顺延时用「格拉摩根的指挥官」管理员微信在维护页扫码 |
+| 公众号后台显示即将过期 | 搜号授权为可选，默认不因其过期催扫码；先静默复用Cookie，确需搜号且微信撤销会话时再由管理员验证 |
 | 新消息仍待分拣 | `refresh` 的输出、学校 API 预算（每日 20 次）、`model_retry_after`。额度用完时任务状态是 `budget`，采集和导出仍完成，次日继续 |
 | 网页没更新 | GitHub Actions 的 Daily public feed 运行记录；`curl http://127.0.0.1:18780/site-data.json` |
 | 飞书没收到汇总 | `journalctl -u bitfeed-digest`；`deliveries` 表中的状态 |

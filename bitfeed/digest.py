@@ -8,7 +8,7 @@ import time
 
 from . import feishu
 from .domain import TZ, clean_model_json
-from .planning import LABELS, select
+from .planning import LABELS, select, weekly_selection
 
 SITE = os.getenv("BITFEED_PUBLIC_URL", "https://lankerr.github.io/bit-student-feed/")
 FILES_BASE = os.getenv("BITFEED_FILES_BASE", "http://212.189.31.226:18780").rstrip("/")
@@ -133,8 +133,9 @@ def _editor(store, entries, ask=None):
 def build(store, now=None, ask=None, use_model=True):
     now = time.time() if now is None else now
     span, groups = select(_rows(store, 0, now), now)
+    groups = weekly_selection(groups)
     entries = [{"id": a["id"], "label": LABELS[key], "source": a["source"], "date": a["fact"], "title": a["title"]}
-               for key, rows in groups.items() if key != "leads" for a in rows]
+               for key, rows in groups.items() if key not in ("leads", "additional") for a in rows]
     verdicts, summary, model_state = ({}, "", "skipped")
     if use_model and entries:
         verdicts, summary, model_state = _editor(store, entries, ask)
@@ -165,11 +166,12 @@ def write_docx(digest, path):
     doc.paragraph("预告范围："+digest["period"]+"，另列下周前需办理及更长期事项。整理时间："+
                   digest["generated_at"]+"。按活动和报名截止日期筛选；较早发布但仍有效的机会继续保留。", note=True)
     doc.paragraph(_model_note(digest), note=True)
+    doc.paragraph("下周列出全部已取得且日期有效的活动与申请；下下周筛选重要事项，第三周筛选值得提前准备的事项。其他已核验未来活动保留在补充查阅部分，未核实线索另列。", note=True)
     if digest["summary"]:
         doc.heading("提前安排")
         doc.paragraph(digest["summary"])
     week_labels = {w["key"]: w["start"]+"至"+w["end"] for w in digest["span"]["weeks"]}
-    for key in ("urgent", "week1", "week2", "week3", "later"):
+    for key in ("urgent", "week1", "week2", "week3", "later", "additional"):
         rows = groups[key]
         heading = LABELS[key]+("（"+week_labels[key]+"）" if key in week_labels else "")
         doc.heading(heading+f"  {len(rows)} 条")
@@ -190,10 +192,8 @@ def write_docx(digest, path):
                 doc.paragraph("截止原文："+a["deadline_evidence"], note=True)
             if v.get("keep") is False:
                 doc.paragraph("编辑复核提示："+(v.get("note") or "模型建议复核，原有日期核验条目予以保留。"), note=True)
-    doc.heading(f"附录  待核实线索  {len(groups['leads'])} 条")
-    doc.paragraph("以下尚未核对活动时间、实际投递截止或参与条件，不计入已核验预告。官网岗位刊登有效期不能代替招聘正文中的实际截止时间。", note=True)
-    for a in groups["leads"]:
-        doc.item(a["title"], a["url"], a["source"]+"；"+a["scope_note"])
+    doc.heading("待核实信息的处理")
+    doc.paragraph(f"另有 {len(groups['leads'])} 条线索保留在采集台账，未列入有效活动清单。它们的活动时间、实际投递截止或参与条件尚待核实；官网岗位刊登有效期不能代替实际招聘截止。", note=True)
     path.parent.mkdir(parents=True, exist_ok=True)
     stage = path.with_name("."+path.name+".next")
     doc.save(stage)
@@ -204,17 +204,19 @@ def _model_note(digest):
     return {"ok": "学校模型已给出优先级与复核意见；正文保留全部通过规则核验的预告。",
             "partial": "学校模型仅处理了部分条目；其余按原有日期核验规则保留。",
             "unavailable": "学校模型未能参与，本期按活动与截止日期整理，不据此删去有效机会。",
-            "skipped": "本期未调用模型，按活动与截止日期整理。"}[digest["model_state"]]
+            "skipped": "按活动与截止日期核验，参与条件、名额及临时变动请以主办方原文为准。"}[digest["model_state"]]
 
 
 def card(digest, docx_url):
     groups, verdicts = digest["groups"], digest["verdicts"]
     total = len(digest["article_ids"])
-    parts = [f"预告 {digest['period']}，共 {total} 条日期已核验信息。按活动和申请节点排列，较早发布但仍有效的内容继续保留。\n"+_model_note(digest)+"\n"]
+    parts = [f"预告 {digest['period']}，主清单 {total} 条日期已核验信息。下周全量、下下周重点、第三周提前准备；较早发布但仍有效的机会继续保留。\n"]
+    if digest['model_state'] != 'skipped':
+        parts.append(_model_note(digest)+"\n")
     if digest["summary"]:
         parts.append("**提前安排**\n"+digest["summary"]+"\n")
     footer = (f"\n**[查看三周预告完整版（Word，{total} 条）]({docx_url})**｜[网页与 RSS]({SITE})\n"
-              f"另有 {len(groups['leads'])} 条待核实线索列于附录，不计入已核验数量。")
+              f"Word另列 {len(groups.get('additional', []))} 条其他已核验活动供查阅；待核实线索未纳入本期活动清单。")
     used = len("".join(parts))+len(footer)
     for key in ("urgent", "week1", "week2", "week3", "later"):
         if not groups[key]:
@@ -232,8 +234,8 @@ def card(digest, docx_url):
     return "\n".join(parts)+footer
 
 
-def write_preview(store, now=None, use_model=True, directory=None):
-    report = build(store, now=now, use_model=use_model)
+def write_preview(store, now=None, use_model=True, directory=None, report=None):
+    report = report or build(store, now=now, use_model=use_model)
     dest = Path(directory) if directory is not None else SITE_DIR/"weekly"
     name = "bit-preview-"+report["today"]+".docx"
     write_docx(report, dest/name)
@@ -252,18 +254,18 @@ def write_preview(store, now=None, use_model=True, directory=None):
     return summary
 
 
-def send(store, mode=None, now=None, ask=None):
+def send(store, mode=None, now=None, ask=None, use_model=True, report=None):
     mode = mode or os.getenv("BITFEED_DIGEST_MODE", "test")
     now = time.time() if now is None else now
     local = datetime.fromtimestamp(now, TZ)
-    saturday = local.replace(hour=12, minute=0, second=0, microsecond=0) - timedelta(days=(local.weekday()-5)%7)
+    saturday = local.replace(hour=9, minute=0, second=0, microsecond=0) - timedelta(days=(local.weekday()-5)%7)
     if saturday > local:
         saturday -= timedelta(days=7)
     week_start = saturday.isoformat()
     prior = feishu.week_receipt(store, mode, week_start)
     if prior and prior != "rejected":
         return {"state": prior, "duplicate": True, "week_start": week_start}
-    digest = build(store, now, ask)
+    digest = report or build(store, now, ask, use_model=use_model)
     name = f"bit-weekly-{digest['today']}.docx"
     docx_url = f"{FILES_BASE}/weekly/{name}"
     identifiers = digest["article_ids"] or ["empty:" + str(digest["window"][1] // 86400)]

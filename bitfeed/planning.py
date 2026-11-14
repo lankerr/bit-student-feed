@@ -12,8 +12,8 @@ SKIP = re.compile(r"圆满|落幕|收官|回顾|喜报|荣获|祝贺|采购|招�
 START = re.compile(r"活动开始（官网字段）：(\d{4}-\d{2}-\d{2})")
 END = re.compile(r"(?:招聘有效截止|活动结束)（官网字段）：(\d{4}-\d{2}-\d{2})")
 STATUS = re.compile(r"官网显示状态（须结合日期核对）：([^\n]+)")
-LABELS = {"urgent": "下周前需办理", "week1": "下周", "week2": "下下周", "week3": "下下下周",
-          "later": "更长期预告与开放申请", "leads": "待核实线索"}
+LABELS = {"urgent": "下周前需办理", "week1": "下周全量", "week2": "下下周重点", "week3": "下下下周提前准备",
+          "later": "更长期重要机会", "additional": "补充查阅的其他已核验活动", "leads": "待核实线索"}
 PARTIAL_DATE = re.compile(r"(?:(?P<year>20\d{2})年)?(?P<month>\d{1,2})月(?P<day>\d{1,2})日"
                           r"(?:\s*(?P<hour>\d{1,2})(?:[:：](?P<minute>\d{2})|点))?")
 
@@ -81,7 +81,7 @@ def select(items, now):
     local = datetime.fromtimestamp(now, TZ)
     today = local.date().isoformat()
     span = window(now)
-    groups = {key: [] for key in LABELS}
+    groups = {key: [] for key in LABELS if key != "additional"}
     for item in items:
         title, source = item.get("title", ""), item.get("source", "")
         c = item.get("classification") or {}
@@ -150,6 +150,32 @@ def select(items, now):
     return span, groups
 
 
+def weekly_selection(groups):
+    """Keep next week's complete inventory and focus more distant sections.
+
+    Distant verified items that miss the focus rules remain in the attachment's
+    supplement; date verification never depends on editorial importance.
+    """
+    result = {key: list(rows) for key, rows in groups.items()}
+    result['additional'] = []
+    preparation = re.compile(r"征稿|投稿|竞赛|大赛|比赛|揭榜|申报|申请|交换|选调|奖学金|实习")
+    for key in ('week2', 'week3', 'later'):
+        chosen=[]
+        for item in result[key]:
+            score = float(item.get('score') or 0)
+            academic = item.get('category') in ('academic', 'competition')
+            needs_preparation = bool(preparation.search(item['title']))
+            important = score >= 85 or academic and score >= 80
+            worthwhile = (needs_preparation and score >= 80 or academic and score >= 85 or score >= 92)
+            keep = important if key == 'week2' else worthwhile
+            if keep:
+                chosen.append(item)
+            else:
+                result['additional'].append(dict(item, original_section=LABELS[key]))
+        result[key]=chosen
+    return result
+
+
 def _entry(item, c, due, event, deadline, verified):
     body = item.get("body") or ""
     parts = []
@@ -171,5 +197,6 @@ def _entry(item, c, due, event, deadline, verified):
             "event_evidence": c.get("event_date_evidence") or _field(body, "活动开始（官网字段）"),
             "deadline_evidence": c.get("deadline_evidence") or "", "date_verified": verified,
             "deadline_year_inferred": bool(c.get("deadline_year_inferred")),
+            "category": c.get("category") or "other", "score": c.get("score") or 0,
             "summary": c.get("summary") or "", "next_step": c.get("next_step") or "打开原文核对报名和参与要求。",
             "location": location, "audience": audience, "scope_note": note}

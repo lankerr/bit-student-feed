@@ -23,7 +23,7 @@ function renderPreview(preview){
   const box=$('weekly-preview');box.replaceChildren();const word=$('weekly-word');word.hidden=true;
   if(!preview?.available){box.append(el('p','首期三周预告正在整理，已核验活动仍可在下方查询。'));return;}
   box.append(el('p',preview.period+' · '+countText(preview.verified)+' 条日期已核验信息'));
-  const names={urgent:'下周前需办理',week1:'下周',week2:'下下周',week3:'下下下周',later:'更长期'};
+  const names={urgent:'下周前需办理',week1:'下周全量',week2:'下下周重点',week3:'第三周提前准备',later:'更长期重要机会',additional:'补充查阅'};
   box.append(el('p',Object.entries(names).map(([key,label])=>label+' '+countText(preview.counts?.[key])+' 条').join(' · ')));
   box.append(el('p','整理时间 '+dateTime(preview.generated_at)+'；具体报名资格、名额和临时调整请核对原文。'));
   try{const url=new URL(preview.docx_url);if(['http:','https:'].includes(url.protocol)&&!url.username&&!url.password&&url.hostname==='212.189.31.226'&&url.pathname==='/weekly/bit-preview-latest.docx'){word.href=url.href;word.hidden=false;}}catch{}

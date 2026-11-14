@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 import unittest
 
 from bitfeed.domain import TZ
-from bitfeed.planning import select, window
+from bitfeed.planning import select, window, weekly_selection
 from bitfeed.store import Store
 from bitfeed import digest
 from pathlib import Path
@@ -114,11 +114,24 @@ class PlanningTest(unittest.TestCase):
         _,g=select([uncertain],self.now)
         self.assertEqual([a['id'] for a in g['leads']],['大赛报名'])
 
+    def test_weekly_focus_keeps_all_next_week_and_archives_distant_nonfocus_items(self):
+        low={'id':'low','title':'普通宣讲','category':'career','score':65}
+        major={'id':'major','title':'博士生论坛征稿','category':'academic','score':92}
+        prep={'id':'prep','title':'暑期实习生招收','category':'career','score':90}
+        inventory={'urgent':[], 'week1':[low], 'week2':[low,major], 'week3':[low,prep], 'later':[], 'leads':[]}
+        selected=weekly_selection(inventory)
+        self.assertEqual(selected['week1'],[low])
+        self.assertEqual(selected['week2'],[major])
+        self.assertEqual(selected['week3'],[prep])
+        self.assertEqual(len(selected['additional']),2)
+        self.assertEqual(len(inventory['week2']),2)
+
     def test_preview_generation_has_no_delivery_side_effect(self):
         with tempfile.TemporaryDirectory() as tmp:
             store=Store(Path(tmp)/'data')
-            store.import_articles([{'title':'长期征稿','url':'https://cs.bit.edu.cn/future.htm',
-                'source':'学院','published_at':int(self.now)-120*86400,'body':'投稿截止2099年12月1日'}])
+            with patch('bitfeed.store.time.time',return_value=self.now):
+                store.import_articles([{'title':'长期征稿','url':'https://cs.bit.edu.cn/future.htm',
+                    'source':'学院','published_at':int(self.now)-120*86400,'body':'投稿截止2099年12月1日'}])
             a=store.candidates()[0]
             store.apply_classifications({'items':[{'article_id':a['id'],'source_hash':a['source_hash'],
                 'category':'academic','event_status':'actionable','score':90,'confidence':.95,

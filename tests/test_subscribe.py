@@ -285,7 +285,7 @@ class DigestAlertTest(unittest.TestCase):
         self.assertEqual(calls, ["BITFEED_WEEKLY_V1", "BITFEED_WEEKLY_SUMMARY_V1"])
         text = send.call_args.kwargs["json"]["card"]["body"]["elements"][0]["content"]
         self.assertIn("本周重点是奖学金申请。", text)
-        self.assertIn("【下周】", text)
+        self.assertIn("【下周全量】", text)
         self.assertIn("费振勇奖学金评选的通知", text)
         self.assertNotIn("秋日的校园", text)
         files = list((Path(self.tmp.name) / "site" / "weekly").glob("bit-weekly-*.docx"))
@@ -294,7 +294,8 @@ class DigestAlertTest(unittest.TestCase):
         with zipfile.ZipFile(files[0]) as archive:
             document = archive.read("word/document.xml").decode("utf-8")
             rels = archive.read("word/_rels/document.xml.rels").decode("utf-8")
-        self.assertIn("本周新上的校园招聘", document)
+        self.assertNotIn("本周新上的校园招聘", document)
+        self.assertIn("未列入有效活动清单", document)
         self.assertIn("下周前需办理", document)
         self.assertIn("编辑复核提示", document)
         self.assertIn("2027届选调生宣讲会", document)
@@ -331,7 +332,7 @@ class DigestAlertTest(unittest.TestCase):
     def test_week_rollover_and_receipt_from_previous_release(self):
         from bitfeed.feishu import send
         wednesday = datetime(2026, 11, 11, 16, 52, tzinfo=TZ)
-        saturday = datetime(2026, 11, 14, 12, tzinfo=TZ).timestamp()
+        saturday = datetime(2026, 11, 14, 9, tzinfo=TZ).timestamp()
         with mock.patch("requests.Session.post", return_value=Response({"code": 0})) as post, \
                 mock.patch("bitfeed.feishu.now_iso", return_value=wednesday.isoformat()), \
                 mock.patch.object(digest, "SITE_DIR", Path(self.tmp.name)), \
@@ -359,6 +360,7 @@ class DigestAlertTest(unittest.TestCase):
             self.assertNotIn("digest:window_end", self.store.metadata())
             post.assert_called_once()
 
+    @mock.patch.dict(os.environ, {'BITFEED_MP_LOGIN_REQUIRED':'true'})
     def test_alerts_repeat_at_most_every_12_hours_and_announce_recovery(self):
         wechat = Path(self.tmp.name) / "wechat"
         wechat.mkdir()
@@ -373,6 +375,19 @@ class DigestAlertTest(unittest.TestCase):
         (wechat / "keepalive.json").write_text(json.dumps({"state": "ok", "expires_at": time.time() + 4 * 86400}))
         alerts.run(self.store, weread, wechat, send=send)
         self.assertEqual(sent[-1], "北理消息站 · 已恢复")
+
+    @mock.patch.dict(os.environ, {'BITFEED_MP_LOGIN_REQUIRED':'false'})
+    def test_optional_search_login_does_not_request_scanning_or_fake_a_recovery(self):
+        wechat=Path(self.tmp.name)/'wechat';wechat.mkdir()
+        weread=Path(self.tmp.name)/'weread';weread.mkdir()
+        (wechat/'keepalive.json').write_text(json.dumps({'state':'auth_expired'}))
+        self.store.set_meta('alert:mp_login',time.time())
+        sent=[]
+        alerts.run(self.store,weread,wechat,send=lambda *a,**kw:sent.append(a) or 'sent')
+        self.assertEqual(sent,[])
+        self.assertEqual(float(self.store.metadata()['alert:mp_login']),0)
+        (weread/'scheduler.json').write_text(json.dumps({'session':{'state':'auth_expired'}}))
+        self.assertIn('weread_login',alerts.conditions(weread,wechat))
 
     def test_public_collection_alerts_on_a_stalled_run_or_a_long_failing_source_but_not_a_page_cap(self):
         now = time.time()

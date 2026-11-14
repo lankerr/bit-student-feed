@@ -70,7 +70,7 @@ def status():
                    "cooldown_until": _when((scheduler.get("limits") or {}).get("cooldown_until"))
                        if float((scheduler.get("limits") or {}).get("cooldown_until", 0)) > time.time() else None,
                    "login": _read(WEREAD / "login-status.json").get("state"), "login_running": running.get("weread", False)},
-        "mp": {"session": keep.get("state", "unknown"), "usable": login_usable("mp"), "checked_at": _when(keep.get("checked_at")),
+        "mp": {"session": keep.get("state", "unknown"), "required_for_collection": False, "usable": login_usable("mp"), "checked_at": _when(keep.get("checked_at")),
                "expires_at": _when(keep.get("expires_at")),
                "login": _read(WECHAT / "status.json").get("state"), "login_running": running.get("mp", False)}}
 
@@ -82,7 +82,15 @@ def login_usable(kind, now=None):
         return value.get("state")=="ok" and float(value.get("checked_at") or 0)>=now-7200
     value=_read(WECHAT/"keepalive.json")
     return (value.get("state")=="ok" and float(value.get("checked_at") or 0)>=now-7200
-            and float(value.get("expires_at") or 0)>now)
+            and (not value.get("expires_at") or float(value["expires_at"])>now))
+
+
+def refresh_saved_login(kind):
+    if kind == "weread":
+        from .subscribe import ping_session
+        return ping_session(WEREAD)
+    from .mp_session import keepalive
+    return keepalive(WECHAT)
 
 
 def start_login(kind, force=False):
@@ -93,6 +101,11 @@ def start_login(kind, force=False):
         process = _running.get(kind)
         if process is not None and process.poll() is None:
             return False
+        if not force:
+            result = refresh_saved_login(kind)
+            if result.get("state") not in ("auth_missing", "auth_expired"):
+                # Reuse saved cookies first. Network/rate-limit failures need no QR.
+                return False
         for name in (status_name, qr_name):
             try:
                 (root / name).unlink()
@@ -175,16 +188,16 @@ h2{font-size:17px;margin:0 0 8px}dl{display:grid;grid-template-columns:8em 1fr;g
 button{font:inherit;padding:7px 16px;border:0;border-radius:6px;background:#3370ff;color:#fff;cursor:pointer}button:disabled{background:#a6bdf7}
 .qr{margin-top:12px;text-align:center}.qr img{width:240px;height:240px;image-rendering:pixelated}.note{color:#646a73;font-size:13px}
 .ok{color:#1f8f4e}.bad{color:#d14343}</style></head><body><main>
-<h1>登录维护</h1><p class="sub">两个登录都保存在这台服务器上，每 30 分钟自动续期。失效时打开本页会自动出码，用微信扫一下即可，不必在电脑上再装一套登录。</p>
+<h1>登录维护</h1><p class="sub">登录 Cookie 保存在服务器上，每 30 分钟自动续期。日常采集不依赖公众号后台登录；请求登录时先复用现有 Cookie，只有确认失效才获取二维码。本页可在手机打开。</p>
 <section><h2>微信读书（订阅公众号文章）</h2><p class="note">登录微信读书网页版。服务器用它订阅各学院公众号的最新文章，平时只做续期，不需要反复扫码。</p>
 <dl id="weread"></dl><button data-kind="weread">扫码登录微信读书</button><div class="qr" id="qr-weread"></div></section>
-<section><h2>公众号后台 · 格拉摩根的指挥官</h2><p class="note">登录自己的公众号「格拉摩根的指挥官」。只用来搜索、核验学校官方号，不发文章、不读别人后台。</p>
+<section><h2>公众号后台 · 格拉摩根的指挥官</h2><p class="note">可选的搜号授权。现有公众号文章采集不依赖此登录；新增号可直接粘贴公开文章链接。已登录时复用 Cookie，仅需要按名称搜号时再处理授权。</p>
 <dl id="mp"></dl><button data-kind="mp">扫码登录格拉摩根的指挥官</button><div class="qr" id="qr-mp"></div>
-<p class="note">请用对该公众号有管理员权限的微信扫码。</p></section>
+<p class="note">若微信撤销了会话，仍需管理员确认；不会因这个可选登录过期而催你回电脑扫码。</p></section>
 <section><h2>添加订阅的公众号</h2><p class="note">在微信里打开该号任意一篇文章，复制链接粘贴到这里。</p>
 <input id="link" type="url" placeholder="https://mp.weixin.qq.com/s/..." style="width:100%;padding:7px;font:inherit;box-sizing:border-box;margin-bottom:8px">
 <button id="add">添加</button> <span id="added" class="note"></span></section>
-<p class="note">手机上打开本页时：截图二维码，再在微信“扫一扫”里从相册选图即可。</p></main><script>
+<p class="note">确需验证时，可在手机打开本页并保存二维码，在微信扫一扫中尝试从相册识别；是否支持该方式以微信提示为准。</p></main><script>
 const base=location.pathname.replace(/\\/?$/,'/');const names={ok:'正常',authorized:'已登录',unknown:'未检查',auth_missing:'未登录',auth_expired:'已失效',ready:'请扫码',scanned:'已扫码，请在手机确认',expired:'二维码已过期',starting:'正在获取二维码',qr_expired_regenerating:'二维码已刷新',failed:'失败',verification_failed:'登录未通过校验',no_platform_account:'该微信没有可登录的公众号',busy:'采集中，稍后自动续',cooldown:'限流暂停，稍后自动续',daily_cap:'今日额度用完'};
 function row(dl,k,v){const t=document.createElement('dt');t.textContent=k;const d=document.createElement('dd');d.textContent=v??'—';d.style.margin=0;dl.append(t,d)}
 async function refresh(){const s=await (await fetch(base+'status.json',{cache:'no-store'})).json();
@@ -193,8 +206,8 @@ async function refresh(){const s=await (await fetch(base+'status.json',{cache:'n
  for(const kind of ['weread','mp']){const box=document.getElementById('qr-'+kind);const st=s[kind].login;const sess=s[kind].session;
   const button=document.querySelector('button[data-kind="'+kind+'"]');button.disabled=s[kind].usable||s[kind].login_running;button.textContent=s[kind].usable?'登录有效，无需扫码':(kind==='weread'?'扫码登录微信读书':'扫码登录格拉摩根的指挥官');
   if(s[kind].usable){box.replaceChildren();continue;}
-  if(['auth_missing','auth_expired'].includes(sess)&&!s[kind].login_running&&!box.dataset.autostarted){box.dataset.autostarted=1;box.dataset.started=1;fetch(base+'login/'+kind,{method:'POST'});}
-  if(s[kind].login_running&&['ready','qr_expired_regenerating','scanned','starting'].includes(st)){box.innerHTML='<img alt="登录二维码" src="'+base+'qr/'+kind+'.png?'+Date.now()+'"><div>'+(names[st]||st)+'</div>'}
+  if(kind==='weread'&&['auth_missing','auth_expired'].includes(sess)&&!s[kind].login_running&&!box.dataset.autostarted){box.dataset.autostarted=1;box.dataset.started=1;fetch(base+'login/'+kind,{method:'POST'});}
+  if(s[kind].login_running&&['ready','qr_expired_regenerating','scanned','starting'].includes(st)){box.innerHTML='<img alt="登录二维码" src="'+base+'qr/'+kind+'.png?'+Date.now()+'"><div>'+(names[st]||st)+'</div><a href="'+base+'qr/'+kind+'.png" download="bitfeed-login.png">保存当前二维码</a>'}
   else if(st&&box.dataset.started){box.innerHTML='<div class="'+(st==='authorized'?'ok':'bad')+'">'+(names[st]||st)+'</div>'}}}
 document.querySelectorAll('button[data-kind]').forEach(b=>b.onclick=async()=>{b.disabled=true;document.getElementById('qr-'+b.dataset.kind).dataset.started=1;
  await fetch(base+'login/'+b.dataset.kind,{method:'POST'});setTimeout(()=>b.disabled=false,20000)});
@@ -235,7 +248,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         parts = urlsplit(self.path)
         if parts.path == "/health":
-            return self._send(200, {"ok": True, "role": "public-article-index", "schedule": "Sat 12:00 Asia/Shanghai; future three weeks preview"})
+            return self._send(200, {"ok": True, "role": "public-article-index", "schedule": "Sat 09:00 Asia/Shanghai; next week all, following weeks highlights"})
         weekly = re.fullmatch(r"/weekly/(bit-(?:weekly|preview)-(?:\d{4}-\d{2}-\d{2}|latest)\.docx)", parts.path)
         if weekly:
             try:

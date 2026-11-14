@@ -62,6 +62,10 @@ def main():
     preview=sub.add_parser("weekly-preview",help="generate the next three weeks without sending messages")
     preview.add_argument("--no-model",action="store_true")
     preview.add_argument("--output",default="/var/lib/bitfeed-pipeline/site")
+    weekly=sub.add_parser("weekly-send",help="generate and send one Saturday edition, with delivery deduplication")
+    weekly.add_argument("--no-model",action="store_true")
+    weekly.add_argument("--output",default="/var/lib/bitfeed-pipeline/site")
+    weekly.add_argument("--mode",choices=("test","production"))
     args=parser.parse_args()
     if args.command=="build-site":
         print(json.dumps(build(read_json(args.source),args.output),ensure_ascii=False)); return 0
@@ -81,6 +85,17 @@ def main():
         return 0
     store=Store(args.data)
     result={}
+    if args.command=="weekly-send":
+        from . import digest as weekly_digest
+        report=weekly_digest.build(store,use_model=not args.no_model)
+        preview_result=weekly_digest.write_preview(store,report=report,directory=Path(args.output)/"weekly")
+        build(public_data(store),args.output)
+        delivery=weekly_digest.send(store,args.mode,use_model=False,report=report)
+        result={"preview":preview_result,"delivery":delivery}
+        store.set_meta("weekly_delivery",json.dumps(delivery,ensure_ascii=False))
+        build(public_data(store),args.output)
+        print(json.dumps(result,ensure_ascii=False))
+        return 0 if delivery["state"]=="sent" else 1
     if args.command=="weekly-preview":
         from .digest import write_preview
         result=write_preview(store,use_model=not args.no_model,directory=Path(args.output)/"weekly")

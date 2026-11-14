@@ -2,7 +2,7 @@ name: Daily public feed
 on:
   schedule:
     - cron: '20 0 * * *'
-    - cron: '20 4 * * 6'
+    - cron: '20 1 * * 6'
   workflow_dispatch:
   push:
     branches: [main]

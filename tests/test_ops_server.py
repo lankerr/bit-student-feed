@@ -82,11 +82,24 @@ class OpsServerTest(unittest.TestCase):
     def test_login_start_is_single_flight(self):
         fake = mock.Mock()
         fake.poll.return_value = None
-        with mock.patch.object(ops_server.subprocess, "Popen", return_value=fake) as popen:
+        with mock.patch.object(ops_server.subprocess, "Popen", return_value=fake) as popen, \
+                mock.patch.object(ops_server, "refresh_saved_login", return_value={'state':'auth_missing'}):
             self.assertTrue(ops_server.start_login("weread"))
             self.assertFalse(ops_server.start_login("weread"))
         self.assertEqual(popen.call_count, 1)
         ops_server._running.clear()
+
+    def test_expired_status_rechecks_saved_cookies_before_any_qr(self):
+        for result in [{'state':'ok'}, {'state':'failed','error':'Timeout'}, {'state':'cooldown'}]:
+            with mock.patch.object(ops_server,'refresh_saved_login',return_value=result) as reuse, \
+                    mock.patch.object(ops_server.subprocess,'Popen') as popen:
+                self.assertFalse(ops_server.start_login('mp'))
+                reuse.assert_called_once_with('mp')
+                popen.assert_not_called()
+
+    def test_optional_mp_login_does_not_autostart_when_the_page_opens(self):
+        self.assertIn("kind==='weread'&&['auth_missing','auth_expired']".encode(),ops_server.PAGE.encode())
+        self.assertFalse(ops_server.status()['mp']['required_for_collection'])
 
     def test_healthy_logins_do_not_start_a_qr_job_or_replace_the_session(self):
         import time

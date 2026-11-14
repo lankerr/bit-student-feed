@@ -1,8 +1,8 @@
 """Keep the operator's public-platform login alive and use it for account search.
 
-Opening the platform home page re-issues the login cookies with a fresh
-four-day expiry (observed 2026-11-10), so a keepalive every few hours keeps
-the session indefinitely. The cross-account article list (``appmsgpublish``)
+Opening the platform home page can re-issue cookies with a fresh four-day
+expiry (observed 2026-11-10). The platform can still revoke the session
+before that date; keepalive does not guarantee permanent login. The cross-account article list (``appmsgpublish``)
 has been refused for every third party since 2026-07-30 and is not used;
 ``searchbiz`` still resolves account names to fakeids.
 """
@@ -32,7 +32,7 @@ class MpSession:
             self.data = json.loads(self.path.read_text(encoding="utf-8"))
             if not self.data.get("token") or not isinstance(self.data.get("cookies"), list):
                 raise ValueError()
-        except (OSError, ValueError):
+        except (FileNotFoundError, ValueError):
             raise MpError("session_unavailable", "auth_missing") from None
         self.http = http or requests.Session()
         self.http.trust_env = False
@@ -76,18 +76,30 @@ class MpSession:
                 timeout=(10, 30), allow_redirects=False)
         except requests.RequestException as exc:
             raise MpError(type(exc).__name__) from None
-        self._absorb(response)
         if response.status_code in (301, 302, 303, 307, 308):
             raise MpError("redirect_to_login", "auth_expired")
         if response.status_code != 200:
             raise MpError("http_" + str(response.status_code))
+        self._absorb(response)
         return response
 
     def keepalive(self):
         """Load the home page; returns the new key-cookie expiry timestamp."""
         page = self._get("/cgi-bin/home", {"t": "home/index"}).text
-        if "wx.cgiData" not in page or re.search(r"bizlogin\?action=startlogin|请重新登录", page[:4000]):
+        if re.search(r"bizlogin\?action=startlogin|请重新登录", page[:4000]):
             raise MpError("not_logged_in", "auth_expired")
+        if "wx.cgiData" not in page:
+            # A changed home-page layout is not evidence of revoked credentials.
+            response = self._get("/cgi-bin/switchacct", {"action": "get_acct_list", "f": "json", "ajax": 1})
+            try:
+                data = response.json()
+            except ValueError:
+                raise MpError("session_check_non_json", "blocked") from None
+            ret = (data.get("base_resp") or {}).get("ret")
+            if ret in (200003, "200003"):
+                raise MpError("200003", "auth_expired")
+            if ret not in (0, "0") or not (data.get("biz_list") or {}).get("list"):
+                raise MpError("session_check_unconfirmed", "blocked")
         self.data["kept_alive_at"] = int(time.time())
         private_json(self.path, self.data)
         return self.expires_at()
