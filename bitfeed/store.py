@@ -6,7 +6,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from datetime import date, datetime
 
-from .domain import PROMPT_VERSION, TZ, normalize_article, now_iso, validate_classification
+from .domain import PROMPT_VERSION, TZ, article_id, normalize_article, now_iso, validate_classification
 
 
 class Store:
@@ -80,11 +80,15 @@ class Store:
                 conn.execute("INSERT OR REPLACE INTO meta VALUES(?,?)", (key, value))
         return {"imported": len(normalized), "added": added, "changed": changed}
 
-    def recent_peer_search_match(self, source, title, now):
+    def peer_cover_match(self, url, source, title, now):
         with self.connection() as conn:
-            return conn.execute("""SELECT 1 FROM articles WHERE source=? AND title=?
-                AND url LIKE 'https://mp.weixin.qq.com/s?%' AND published_at BETWEEN ? AND ? LIMIT 1""",
-                (source, title, int(now) - 3 * 86400, int(now))).fetchone() is not None
+            direct = conn.execute("SELECT id,body_status FROM articles WHERE id=?", (article_id(url),)).fetchone()
+            if direct:
+                return direct
+            return conn.execute("""SELECT id,body_status FROM articles WHERE source=? AND title=?
+                AND url LIKE 'https://mp.weixin.qq.com/s?%' AND published_at BETWEEN ? AND ?
+                ORDER BY published_at DESC LIMIT 1""",
+                (source, title, int(now) - 3 * 86400, int(now))).fetchone()
 
     def import_peer_search(self, items):
         # Cover links are short. Search links identify the same post by biz/mid/idx.

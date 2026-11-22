@@ -218,17 +218,24 @@ def card(digest, docx_url):
     footer = (f"\n**[查看三周预告完整版（Word，{total} 条）]({docx_url})**｜[网页与 RSS]({SITE})\n"
               f"Word另列 {len(groups.get('additional', []))} 条其他已核验活动供查阅；待核实线索未纳入本期活动清单。")
     used = len("".join(parts))+len(footer)
-    for key in ("urgent", "week1", "week2", "week3", "later"):
+    brief_limits = {"urgent": 1, "week1": 4, "week2": 2, "week3": 1, "later": 1}
+    for key, limit in brief_limits.items():
         if not groups[key]:
             continue
         lines = ["**【"+LABELS[key]+"】**"]
-        for a in sorted(groups[key], key=lambda a: (not verdicts.get(a["id"], {}).get("star", False), a["fact"], a["title"])):
+        ranked = sorted(groups[key], key=lambda a: (
+            not verdicts.get(a["id"], {}).get("star", False),
+            "限原文所列学校" in a["when"] or "限主办校" in a["when"],
+            "明确面向外校" not in a["when"], -a.get("score", 0), a["fact"], a["title"]))
+        for a in ranked[:limit]:
             line = _line(a, verdicts.get(a["id"], {}))
             if used+len(line)+60 > CARD_LIMIT:
                 lines.append("- 其余条目见 Word 完整版")
                 break
             lines.append(line)
             used += len(line)+1
+        if len(ranked) > limit and lines[-1] != "- 其余条目见 Word 完整版":
+            lines.append(f"- 本栏共 {len(ranked)} 条，其余见完整版")
         parts.append("\n".join(lines)+"\n")
         used += len(LABELS[key])+10
     return "\n".join(parts)+footer

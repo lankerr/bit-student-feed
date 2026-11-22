@@ -20,7 +20,7 @@ import time
 from . import accounts as registry
 from . import article_page
 from . import peer_unions
-from .domain import TZ
+from .domain import TZ, article_id
 from .weread import WeReadError, WeReadSession, article_url, private_json
 
 GAP = (50, 80)
@@ -208,6 +208,18 @@ class Worker:
 
     def _poll(self, account, record, summary):
         interval = account["interval"]
+        if record.get("peer_body_id"):
+            try:
+                page = article_page.parse(self._call(self.session.content, record["last_review"]))
+                if not page.get("biz") or page["biz"] == account["fakeid"]:
+                    self.store.attach_body(record["peer_body_id"], page["body"], page["published_at"],
+                                           "available" if page["body"] else "title_only")
+                    summary["bodies"] += bool(page["body"])
+            except (WeReadError, article_page.PageError):
+                pass  # The normal missing-body queue can still use the public article URL.
+            record.pop("peer_body_id")
+            record["next_due"] = self.clock() + interval
+            return
         if (account["name"].startswith(peer_unions.PREFIX) and record.get("last_review")
                 and self.clock() - record.get("peer_search_at", 0) >= 3 * 86400):
             # Use one normal poll slot for other recent posts from this publisher.
@@ -246,9 +258,11 @@ class Worker:
         try:
             url = article_url(review_id=review, book_id=account["book_id"])
             if account["name"].startswith(peer_unions.PREFIX):
-                matched = self.store.recent_peer_search_match(account["name"], title, now)
-                if matched:
+                existing = self.store.peer_cover_match(url, account["name"], title, now)
+                if existing:
                     record.update(last_review=review, last_title=title[:120])
+                    if existing["body_status"] != "available":
+                        record.update(peer_body_id=existing["id"], next_due=now + 300)
                     return
             added = self.store.import_articles([{"url": url, "title": title, "source": account["name"],
                 "published_at": int(now), "publication_status": "unknown", "kind": "wechat",
@@ -258,6 +272,8 @@ class Worker:
             record.update(state="failed", error="unverified_article:" + str(exc)[:40])
             return
         record.update(last_review=review, last_title=title[:120])
+        if account["name"].startswith(peer_unions.PREFIX):
+            record.update(peer_body_id=article_id(url), next_due=now + 300)
         if added:
             record.update(last_new=now, new_total=int(record.get("new_total", 0)) + added)
             summary["new"] += added

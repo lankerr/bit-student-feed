@@ -82,6 +82,7 @@ def send(store, markdown, article_ids, mode="test", session=None, title=None, *,
         if publish_attachment:
             publish_attachment()
         conn.execute("INSERT OR REPLACE INTO deliveries VALUES(?,?,?,?,?)",(target,batch,"sending",now_iso(),""))
+    detail = ""
     try:
         response=(session or requests.Session()).post(webhook,json=payload,timeout=(10,30),allow_redirects=False)
         result=response.json()
@@ -90,10 +91,14 @@ def send(store, markdown, article_ids, mode="test", session=None, title=None, *,
                 "rejected" if result["code"] != 0 and response.status_code < 500 else "unknown")
         else:
             state="unknown"
+        if state!="sent":
+            code=result.get("code") if isinstance(result,dict) else None
+            detail=f"HTTP {response.status_code}, Feishu code {code if type(code) is int else 'unavailable'}"
     except (requests.RequestException,ValueError):
         state="unknown"  # The remote bot might have received it. Never blindly resend.
     with store.connection() as conn:
-        conn.execute("UPDATE deliveries SET state=?,updated_at=? WHERE target_hash=? AND batch_id=?",(state,now_iso(),target,batch))
+        conn.execute("UPDATE deliveries SET state=?,updated_at=?,detail=? WHERE target_hash=? AND batch_id=?",
+                     (state,now_iso(),detail,target,batch))
         if state=="sent":
             conn.executemany("INSERT OR IGNORE INTO delivered_articles VALUES(?,?,?)",[(target,x,now_iso()) for x in article_ids])
             if window_end is not None:

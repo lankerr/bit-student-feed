@@ -23,7 +23,7 @@ class PeerUnionTest(unittest.TestCase):
             store = Store(directory)
             self.assertEqual(store.import_peer_search(found), 1)
             self.assertEqual(store.import_peer_search(found), 0)
-            self.assertTrue(store.recent_peer_search_match(account["name"], "活动报名", now))
+            self.assertIsNotNone(store.peer_cover_match("https://mp.weixin.qq.com/s/shortlink", account["name"], "活动报名", now))
 
     def test_audience_requires_explicit_evidence(self):
         classify = peer_unions.eligibility
