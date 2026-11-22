@@ -64,7 +64,7 @@ def _rows(store, since, now):
     # Keep old posts while their activity/application is still open.
     with store.connection() as conn:
         rows = conn.execute("""SELECT a.id,a.title,a.url,a.source,a.published_at,a.first_seen,a.kind,a.origin,
-            a.publication_status,a.source_hash,a.body,a.body_status,a.source_expiry,c.payload,c.source_hash AS chash
+            a.publication_status,a.source_hash,a.body,a.digest,a.body_status,a.source_expiry,c.payload,c.source_hash AS chash
             FROM articles a LEFT JOIN classifications c ON c.article_id=a.id
             WHERE (a.source_expiry=0 OR a.source_expiry>=?) AND a.first_seen<=?""", (int(now), int(now))).fetchall()
     result = []

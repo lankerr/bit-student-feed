@@ -59,7 +59,9 @@ class Store:
             for item in normalized:
                 old = conn.execute("SELECT * FROM articles WHERE id=?", (item["id"],)).fetchone()
                 if old and item["publication_status"] == "unknown":
-                    item = normalize_article({**item,"published_at":old["published_at"]})
+                    item = normalize_article({**item, "published_at": old["published_at"],
+                                              "publication_status": old["publication_status"],
+                                              "digest": item["digest"] or old["digest"]})
                 if old and not item["body"] and old["body"]:
                     item = normalize_article({**item, "body": old["body"],
                         "digest": item["digest"] or old["digest"], "body_status": old["body_status"]})
@@ -77,6 +79,26 @@ class Store:
                                ("source_refreshed_at", refreshed_at or checked_at or now_iso())):
                 conn.execute("INSERT OR REPLACE INTO meta VALUES(?,?)", (key, value))
         return {"imported": len(normalized), "added": added, "changed": changed}
+
+    def recent_peer_search_match(self, source, title, now):
+        with self.connection() as conn:
+            return conn.execute("""SELECT 1 FROM articles WHERE source=? AND title=?
+                AND url LIKE 'https://mp.weixin.qq.com/s?%' AND published_at BETWEEN ? AND ? LIMIT 1""",
+                (source, title, int(now) - 3 * 86400, int(now))).fetchone() is not None
+
+    def import_peer_search(self, items):
+        # Cover links are short. Search links identify the same post by biz/mid/idx.
+        # Keep existing full text and classifications when revisiting search results.
+        fresh = []
+        with self.connection() as conn:
+            for item in items:
+                row = conn.execute("""SELECT 1 FROM articles WHERE id=? OR
+                    (source=? AND title=? AND url LIKE 'https://mp.weixin.qq.com/s/%'
+                     AND ABS(published_at-?)<=259200) LIMIT 1""",
+                    (normalize_article(item)["id"], item["source"], item["title"], item["published_at"])).fetchone()
+                if row is None:
+                    fresh.append(item)
+        return self.import_articles(fresh)["added"] if fresh else 0
 
     def candidates(self, limit=20, days=30):
         if limit<=0:return []

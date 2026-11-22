@@ -19,6 +19,7 @@ import time
 
 from . import accounts as registry
 from . import article_page
+from . import peer_unions
 from .domain import TZ
 from .weread import WeReadError, WeReadSession, article_url, private_json
 
@@ -207,6 +208,25 @@ class Worker:
 
     def _poll(self, account, record, summary):
         interval = account["interval"]
+        if (account["name"].startswith(peer_unions.PREFIX) and record.get("last_review")
+                and self.clock() - record.get("peer_search_at", 0) >= 3 * 86400):
+            # Use one normal poll slot for other recent posts from this publisher.
+            # Always return to the latest cover after this search, even on failure.
+            try:
+                items = self._call(peer_unions.search_articles, self.session, account, self.clock())
+            except WeReadError as exc:
+                record.update(peer_search_at=self.clock(), last_checked=self.clock(),
+                              error=exc.code, state="failed", next_due=self.clock() + 3600)
+                return
+            added = self.store.import_peer_search(items)
+            now = self.clock()
+            record.update(peer_search_at=now, last_checked=now, last_ok=now, error="", state="ok",
+                          next_due=now + min(8 * 3600, interval))
+            if added:
+                record.update(last_new=now, new_total=record.get("new_total", 0) + added)
+            summary["checked"] += 1
+            summary["new"] += added
+            return
         try:
             cover = self._call(self.session.cover, account["book_id"])
         except WeReadError as exc:
@@ -225,6 +245,11 @@ class Worker:
             return
         try:
             url = article_url(review_id=review, book_id=account["book_id"])
+            if account["name"].startswith(peer_unions.PREFIX):
+                matched = self.store.recent_peer_search_match(account["name"], title, now)
+                if matched:
+                    record.update(last_review=review, last_title=title[:120])
+                    return
             added = self.store.import_articles([{"url": url, "title": title, "source": account["name"],
                 "published_at": int(now), "publication_status": "unknown", "kind": "wechat",
                 "origin": "weread", "digest": str(cover.get("digest") or cover.get("content") or "")[:1000],

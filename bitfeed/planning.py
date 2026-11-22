@@ -4,6 +4,7 @@ import re
 
 from .activity_time import activity_expired
 from .domain import TZ
+from . import peer_unions
 
 CAREER = "北理就业官网·"
 EVENT_SOURCES = {"宣讲会", "双选会", "指导活动"}
@@ -88,6 +89,9 @@ def select(items, now):
         if SKIP.search(title) or c.get("event_status") in ("expired", "recap") or activity_expired(item, local):
             continue
         body = item.get("body") or ""
+        if (source.startswith(peer_unions.PREFIX) and source[len(peer_unions.PREFIX):] in peer_unions.SHARED_OFFICES
+                and not peer_unions.UNION_MENTION.search("\n".join((title, body, item.get("digest") or "")))):
+            continue
         event, deadline = c.get("event_date"), c.get("deadline")
         kind = source[len(CAREER):] if source.startswith(CAREER) else ""
         is_job = kind in JOB_SOURCES
@@ -183,6 +187,8 @@ def _entry(item, c, due, event, deadline, verified):
         parts.append("活动 "+event)
     if deadline:
         parts.append("报名/申请截止 "+deadline)
+    if item["source"].startswith(peer_unions.PREFIX):
+        parts.append(peer_unions.eligibility(body))
     is_job = item.get("source", "")[len(CAREER):] in JOB_SOURCES if item.get("source", "").startswith(CAREER) else False
     location = _field(body, "活动地点（官网字段）", "讲座地点", "活动地点", "地点")
     audience = _field(body, "面向对象", "参与对象", "参赛对象", "面向年级", "学历要求")
