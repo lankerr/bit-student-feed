@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>学术先锋号 · 推送管理工作台｜北理消息站</title>
+<link rel="stylesheet" href="style.css">
+<style>
+.mgr-hero{padding:40px 0 26px;border-bottom:2px solid var(--ink);display:flex;justify-content:space-between;align-items:flex-end;gap:20px;flex-wrap:wrap}
+.mgr-hero h1{font:600 34px/1.35 var(--serif);margin:6px 0 8px}
+.mgr-hero p{margin:0;color:var(--muted);font-size:14px;max-width:620px}
+.btn-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;border-radius:4px;font-size:13px;font-weight:600;border:1px solid var(--line);background:#fff;color:var(--ink);transition:all .15s}
+.btn:hover{border-color:var(--teal);color:var(--teal)}
+.btn-primary{background:var(--teal);border-color:var(--teal);color:#fff}
+.btn-primary:hover{background:#065f56;border-color:#065f56;color:#fff}
+.btn-dark{background:var(--ink);border-color:var(--ink);color:#fff}
+.btn-dark:hover{opacity:.9;color:#fff}
+.mgr-grid{display:grid;grid-template-columns:1.08fr .92fr;gap:24px;margin-top:26px}
+.panel{background:#fff;border:1px solid var(--line);border-radius:6px;padding:22px 24px}
+.panel h2{font:600 20px/1.4 var(--serif);margin:0 0 6px}
+.panel .hint{font-size:12px;color:var(--muted);margin:0 0 18px}
+.field{margin-bottom:16px}
+.field label{display:block;font-size:13px;font-weight:600;margin-bottom:6px}
+.field small{display:block;font-size:11px;color:var(--muted);margin-top:4px;line-height:1.6}
+.field input[type="date"],.field input[type="time"],.field input[type="text"],.field input[type="number"],.field input[type="password"],.field select{width:100%;border:1px solid var(--line);border-radius:4px;padding:8px 11px;background:#fff;font-size:13px;color:var(--ink)}
+.wd-group{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.wd-btn{padding:7px 0;border:1px solid var(--line);border-radius:4px;background:var(--paper);font-size:12px;color:var(--muted);text-align:center}
+.wd-btn.active{background:var(--teal);border-color:var(--teal);color:#fff;font-weight:600}
+.toggle-bar{display:flex;gap:8px}
+.toggle-bar button{flex:1;padding:8px 12px;border:1px solid var(--line);border-radius:4px;background:var(--paper);font-size:13px;color:var(--muted)}
+.toggle-bar button.active-on{background:#e7f1ee;border-color:var(--teal);color:var(--teal);font-weight:700}
+.toggle-bar button.active-off{background:#f4eedf;border-color:#c79a4b;color:#8b672a;font-weight:700}
+.sched-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:10px}
+.sched-table th,.sched-table td{padding:9px 8px;border-bottom:1px solid var(--line);text-align:left}
+.sched-table th{color:var(--muted);font-weight:500;background:var(--paper)}
+.badge{display:inline-block;padding:2px 8px;border-radius:3px;font-size:11px;background:#e7f1ee;color:var(--teal);font-weight:600}
+.badge-pause{background:#f4eedf;color:#8b672a}
+.status-msg{margin-top:12px;padding:10px 12px;border-radius:4px;font-size:12px;background:#eaf1ee;color:var(--ink);display:none}
+.status-msg.show{display:block}
+.status-msg.err{background:#fdf0ef;color:#b42318}
+.code-preview{background:#12283b;color:#e6f0ee;padding:12px 14px;border-radius:4px;font:12px/1.6 Consolas,monospace;overflow-x:auto;white-space:pre;margin:10px 0 0}
+.preview-section{margin-top:26px}
+.date-filter{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+.date-filter input[type="date"]{width:148px;border:1px solid var(--line);border-radius:4px;padding:6px 10px;background:#fff;font-size:12px}
+.mini-list{divide-y:1px solid var(--line)}
+.mini-item{padding:12px 0;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:14px;align-items:flex-start}
+.mini-item h4{margin:0 0 4px;font-size:14px;font-weight:600}
+.mini-item h4 a:hover{color:var(--teal)}
+.mini-meta{font-size:11px;color:var(--muted);display:flex;gap:8px;flex-wrap:wrap}
+.steps-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:14px}
+.step-card{background:var(--paper);border:1px solid var(--line);border-radius:5px;padding:15px 16px}
+.step-card strong{display:block;font-size:13px;margin-bottom:6px;color:var(--teal)}
+.step-card p{margin:0;font-size:12px;color:var(--muted);line-height:1.7}
+@media(max-width:860px){.mgr-grid,.steps-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <a class="brand" href="./"><span class="mark">理</span>北理消息站</a>
+  <nav>
+    <a href="./">返回消息站首页</a>
+    <a href="#schedule-box">排期设置</a>
+    <a href="#preview-box">活动预览</a>
+    <a href="#feishu-help">飞书机器人教程</a>
+    <a href="https://github.com/lankerr/bit-student-feed" target="_blank" rel="noopener">GitHub 仓库 ↗</a>
+  </nav>
+</header>
+
+<main>
+  <section class="mgr-hero">
+    <div>
+      <p class="eyebrow">ACADEMIC PIONEER · 可视化维护工作台</p>
+      <h1>学术先锋号 · 群机器人推送工作台</h1>
+      <p>不用记命令、不用写代码。在这里直接点选推送星期与时间、查看未来排期、下载排好版的 Word 活动汇总，或一键同步到 GitHub。</p>
+    </div>
+    <div class="btn-row">
+      <a class="btn btn-primary" id="download-word" href="http://212.189.31.226:18780/weekly/bit-preview-latest.docx" target="_blank" rel="noopener">📥 下载最新完整版 Word</a>
+      <button class="btn" id="copy-list-btn" type="button">📋 复制本期活动清单</button>
+    </div>
+  </section>
+
+  <section class="mgr-grid" id="schedule-box">
+    <div class="panel">
+      <h2>1. 调整推送时间与统计范围</h2>
+      <p class="hint" id="live-source-note">正在读取线上当前生效的配置…</p>
+
+      <div class="field">
+        <label>自动定时推送开关</label>
+        <div class="toggle-bar">
+          <button type="button" id="btn-enable" class="active-on">✅ 开启自动推送</button>
+          <button type="button" id="btn-disable">⏸️ 寒暑假暂停推送</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="every-weeks">推送间隔周期</label>
+        <select id="every-weeks">
+          <option value="2" selected>每双周推送一次（每隔 2 周，推荐）</option>
+          <option value="1">每周推送一次</option>
+          <option value="3">每 3 周推送一次</option>
+          <option value="4">每 4 周推送一次</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>星期几发送群机器人消息</label>
+        <div class="wd-group" id="push-weekday-group">
+          <button type="button" class="wd-btn" data-wd="1">周一</button>
+          <button type="button" class="wd-btn active" data-wd="2">周二</button>
+          <button type="button" class="wd-btn" data-wd="3">周三</button>
+          <button type="button" class="wd-btn" data-wd="4">周四</button>
+          <button type="button" class="wd-btn" data-wd="5">周五</button>
+          <button type="button" class="wd-btn" data-wd="6">周六</button>
+          <button type="button" class="wd-btn" data-wd="7">周日</button>
+        </div>
+        <small>推文同学周四发公众号时，推荐选「周二」，留出两天审稿排版时间。</small>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="field">
+          <label for="push-time">推送时间（北京时间）</label>
+          <input type="time" id="push-time" value="09:00" step="1800">
+          <small>建议设在整点或半点（如 09:00）</small>
+        </div>
+        <div class="field">
+          <label for="anchor-date">首个推送周基准日</label>
+          <input type="date" id="anchor-date" value="2026-11-24">
+          <small>从这一周起每隔双周推一次</small>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="window-preset">每次推送统计哪几天的活动？</label>
+        <select id="window-preset">
+          <option value="5:15" selected>本周五 → 下下个周五（共 15 天，双周推文标准范围）</option>
+          <option value="5:8">本周五 → 下周五（共 8 天，单周推文范围）</option>
+          <option value="1:14">下周一 → 下下周日（共 14 天，两个完整自然周）</option>
+          <option value="custom">自定义起始星期与统计天数…</option>
+        </select>
+      </div>
+
+      <div id="custom-window-box" hidden style="display:none;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="field">
+          <label for="start-weekday">统计起始星期</label>
+          <select id="start-weekday">
+            <option value="1">周一</option>
+            <option value="2">周二</option>
+            <option value="3">周三</option>
+            <option value="4">周四</option>
+            <option value="5" selected>周五</option>
+            <option value="6">周六</option>
+            <option value="7">周日</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="span-days">连续统计天数（1~42）</label>
+          <input type="number" id="span-days" min="1" max="42" value="15">
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="title-prefix">飞书卡片与 Word 标题前缀</label>
+        <input type="text" id="title-prefix" maxlength="40" value="北理双周活动汇总（学术先锋号）">
+      </div>
+
+      <div class="btn-row" style="margin-top:8px">
+        <button type="button" class="btn btn-primary" id="copy-and-open-gh">✏️ 复制配置并去 GitHub 粘贴保存（零门槛）</button>
+        <a class="btn" href="https://github.com/lankerr/bit-student-feed/actions/workflows/pioneer-push.yml" target="_blank" rel="noopener">🚀 打开手动推送页 ↗</a>
+      </div>
+
+      <details class="source-audit" style="margin-top:16px">
+        <summary><span class="source-heading">⚡ 进阶：绑定 GitHub 口令，在本网页一键保存 / 一键推飞书</span></summary>
+        <div class="source-audit-body" style="padding-top:12px">
+          <div class="field" style="margin-bottom:10px">
+            <label for="gh-token">GitHub Personal Access Token（仅保存在你自己的浏览器本地）</label>
+            <input type="password" id="gh-token" placeholder="粘贴 github_pat_... 或 ghp_... 口令">
+            <small>填一次后自动记住；只请求 api.github.com，不会上传给任何第三方。</small>
+          </div>
+          <div class="btn-row">
+            <button type="button" class="btn btn-dark" id="api-save-btn">💾 在本页直接保存设置</button>
+            <button type="button" class="btn btn-primary" id="api-push-btn">📨 立即推送一次到飞书群</button>
+            <button type="button" class="btn" id="api-clear-token">清除本地口令</button>
+          </div>
+        </div>
+      </details>
+
+      <div class="status-msg" id="action-status" role="status"></div>
+    </div>
+
+    <div class="panel">
+      <h2>2. 实时排期核对预览</h2>
+      <p class="hint">左边每改一项，下面会自动算出接下来 4 次群机器人推送与统计范围，确认无误再保存。</p>
+      <div id="schedule-badge-wrap"><span class="badge" id="schedule-badge">每双周周二 09:00</span></div>
+      <table class="sched-table">
+        <thead>
+          <tr>
+            <th>期次</th>
+            <th>群机器人发送时间</th>
+            <th>统计活动区间</th>
+          </tr>
+        </thead>
+        <tbody id="upcoming-rows">
+          <tr><td colspan="3">正在计算排期…</td></tr>
+        </tbody>
+      </table>
+
+      <details class="source-audit" style="margin-top:18px">
+        <summary><span class="source-heading">查看自动生成的配置文件原文（push.toml）</span></summary>
+        <div class="source-audit-body">
+          <pre class="code-preview" id="toml-preview"></pre>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <section class="panel preview-section" id="preview-box">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+      <div>
+        <h2>3. 本期时间窗内的已核验活动实时清单 <span id="window-count" style="font:13px sans-serif;color:var(--muted)"></span></h2>
+        <p class="hint" style="margin-bottom:10px">默认按上方设置自动填入「本周五 → 下下个周五」，也可手动改日期临时挑选题。</p>
+      </div>
+      <div class="date-filter">
+        <label style="font-size:12px;color:var(--muted)">从</label>
+        <input type="date" id="filter-start">
+        <label style="font-size:12px;color:var(--muted)">至</label>
+        <input type="date" id="filter-end">
+        <button type="button" class="btn" id="reset-window-btn" style="padding:6px 12px;font-size:12px">按当前规则重置日期</button>
+      </div>
+    </div>
+    <div id="window-articles"><p class="empty">正在读取服务端已核验的活动数据…</p></div>
+  </section>
+
+  <section class="panel preview-section" id="feishu-help" style="margin-bottom:48px">
+    <h2>4. 新手三步指南（日常怎么改、飞书机器人怎么绑）</h2>
+    <div class="steps-grid">
+      <div class="step-card">
+        <strong>第一步：平时改时间 / 放假暂停</strong>
+        <p>在本页面上方选好新的星期、时间或点「寒暑假暂停推送」，点击绿色按钮「复制配置并去 GitHub 粘贴保存」→ 在打开的页面按 Ctrl+A 全选、Ctrl+V 粘贴 → 点右上角绿色 Commit changes 即可，服务器半小时内自动同步生效。</p>
+      </div>
+      <div class="step-card">
+        <strong>第二步：拿 Word 文档 / 临时补发</strong>
+        <p>想直接拿排好版的 Word 发给推文同学，点本页右上角「下载最新完整版 Word」即可；想临时往飞书群手动补推一次，点「打开手动推送页」→ 点右侧 Run workflow → 选 send_feishu 运行即可。</p>
+      </div>
+      <div class="step-card">
+        <strong>第三步：绑定新的飞书群机器人</strong>
+        <p>打开目标飞书群 → 右上角设置 → 群机器人 → 添加「自定义机器人」→ 安全设置勾选「签名校验」（不要开 IP 白名单），复制 Webhook 地址与密钥，在 GitHub 仓库 Settings → Secrets → Actions 中填入 <code>FEISHU_WEBHOOK</code> 与 <code>FEISHU_SIGNING_SECRET</code>。</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p>北理消息站 · 学术先锋号推送工作台</p>
+    <p>公开静态页面，不含任何服务器密钥；所有活动时间与报名资格以主办方原文为准。</p>
+    <a href="https://github.com/lankerr/bit-student-feed/blob/main/docs/github-feishu-guide.md" target="_blank" rel="noopener">查看完整说明文档 ↗</a>
+  </footer>
+</main>
+<script src="manage.js" defer></script>
+</body>
+</html>

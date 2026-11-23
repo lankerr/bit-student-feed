@@ -5,6 +5,7 @@
 这是非官方学生项目，不读取任何人电脑上的微信或聊天记录。
 
 - 网页：<https://lankerr.github.io/bit-student-feed/>
+- **学术先锋号可视化推送管理台（部员日常操作页）**：<https://lankerr.github.io/bit-student-feed/manage.html>
 - RSS：`feed.xml`（全部消息）、`activities.xml`（通过日期与来源核验的可参加活动）
 - 每日指引：`daily.md`
 
@@ -12,7 +13,8 @@
 
 | 我想做什么 | 在哪里点 |
 | --- | --- |
-| **修改推送星期、时间、单双周、寒暑假暂停** | 打开 [`config/push.toml`](config/push.toml) → 点右上角铅笔图标 `✏️` 修改 → 点绿色 `Commit changes` 保存（服务器自动同步生效） |
+| **可视化点选推送时间、看排期日历、一键复制活动清单与下载 Word（最推荐）** | 直接打开可视化管理台：<https://lankerr.github.io/bit-student-feed/manage.html> |
+| **修改推送星期、时间、单双周、寒暑假暂停** | 在上面管理台选好点保存，或直接打开 [`config/push.toml`](config/push.toml) 点右上角铅笔 `✏️` 修改保存 |
 | **看本期预览、下载 Word 完整版、或立即手动推一次飞书群** | 打开上方 [`Actions` → `学术先锋号活动推送`](https://github.com/lankerr/bit-student-feed/actions/workflows/pioneer-push.yml) → 点右侧 `Run workflow` |
 | **添加或更换飞书群机器人 Webhook** | 见新手手把手教程：[飞书群机器人与 GitHub 日常维护说明](docs/github-feishu-guide.md) |
 

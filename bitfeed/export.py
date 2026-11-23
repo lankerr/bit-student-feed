@@ -160,8 +160,11 @@ def build(data, destination, base_url="https://lankerr.github.io/bit-student-fee
     data = validate_public_data(data)
     dest = Path(destination)
     dest.mkdir(parents=True,exist_ok=True)
-    for name in ("index.html","app.js","style.css"):
+    for name in ("index.html","app.js","style.css","manage.html","manage.js"):
         copyfile(Path(__file__).parent/"web"/name, dest/name)
+    push_toml = Path(__file__).parent.parent/"config"/"push.toml"
+    if push_toml.exists():
+        copyfile(push_toml, dest/"push.toml")
     (dest/".nojekyll").write_text("",encoding="utf-8")
     atomic_text(dest/"data.json",json.dumps(data,ensure_ascii=False,indent=2))
     atomic_text(dest/"sources.json",json.dumps(data.get("sources",[]),ensure_ascii=False,indent=2))
