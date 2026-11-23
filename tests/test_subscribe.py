@@ -259,7 +259,7 @@ class DigestAlertTest(unittest.TestCase):
         self.assertIn("活动 " + self.talk_day, text)
         self.assertRegex(digest._short(self.talk_day), r"^\d{4}年")
         self.assertIn("http://example/weekly.docx", text)
-        self.assertTrue(built["title"].startswith("北理未来三周预告 · "))
+        self.assertTrue(built["title"].startswith("北理双周活动汇总（学术先锋号） · "))
         self.assertNotIn("暂缓举办", json.dumps(self.store.public_articles(days=4000), ensure_ascii=False))
 
     def test_model_verdicts_shape_the_card_and_the_word_file(self):
@@ -285,7 +285,7 @@ class DigestAlertTest(unittest.TestCase):
         self.assertEqual(calls, ["BITFEED_WEEKLY_V1", "BITFEED_WEEKLY_SUMMARY_V1"])
         text = send.call_args.kwargs["json"]["card"]["body"]["elements"][0]["content"]
         self.assertIn("本周重点是奖学金申请。", text)
-        self.assertIn("【下周全量】", text)
+        self.assertTrue(any(h in text for h in ("第一周（本周五至下周四）", "第二周（下周五至下下周五）", "本周五前即将截止/举办")))
         self.assertIn("费振勇奖学金评选的通知", text)
         self.assertNotIn("秋日的校园", text)
         files = list((Path(self.tmp.name) / "site" / "weekly").glob("bit-weekly-*.docx"))
@@ -296,7 +296,7 @@ class DigestAlertTest(unittest.TestCase):
             rels = archive.read("word/_rels/document.xml.rels").decode("utf-8")
         self.assertNotIn("本周新上的校园招聘", document)
         self.assertIn("未列入有效活动清单", document)
-        self.assertIn("下周前需办理", document)
+        self.assertIn("本周五前即将截止/举办", document)
         self.assertIn("编辑复核提示", document)
         self.assertIn("2027届选调生宣讲会", document)
         self.assertNotIn("秋日的校园", document)
@@ -332,19 +332,19 @@ class DigestAlertTest(unittest.TestCase):
     def test_week_rollover_and_receipt_from_previous_release(self):
         from bitfeed.feishu import send
         wednesday = datetime(2026, 11, 11, 16, 52, tzinfo=TZ)
-        saturday = datetime(2026, 11, 14, 9, tzinfo=TZ).timestamp()
+        tuesday = datetime(2026, 11, 24, 9, tzinfo=TZ).timestamp()
         with mock.patch("requests.Session.post", return_value=Response({"code": 0})) as post, \
                 mock.patch("bitfeed.feishu.now_iso", return_value=wednesday.isoformat()), \
                 mock.patch.object(digest, "SITE_DIR", Path(self.tmp.name)), \
                 mock.patch.object(digest, "_editor", return_value=({}, "", "skipped")):
             send(self.store, "legacy", ["old article", "weekly:2026-11-11"])
             with mock.patch.object(digest, "build", side_effect=AssertionError("already delivered")):
-                self.assertTrue(digest.send(self.store, now=saturday-1)["duplicate"])
-            self.assertFalse(digest.send(self.store, now=saturday)["duplicate"])
+                self.assertTrue(digest.send(self.store, now=tuesday-1)["duplicate"])
+            self.assertFalse(digest.send(self.store, now=tuesday)["duplicate"])
             with mock.patch.object(digest, "build", side_effect=AssertionError("already delivered")):
-                self.assertTrue(digest.send(self.store, now=saturday+86400)["duplicate"])
+                self.assertTrue(digest.send(self.store, now=tuesday+86400)["duplicate"])
             self.assertEqual(post.call_count, 2)
-            self.assertEqual(int(self.store.metadata()["digest:window_end"]), saturday)
+            self.assertEqual(int(self.store.metadata()["digest:window_end"]), tuesday)
 
     def test_ambiguous_weekly_receipt_survives_rerun(self):
         import requests

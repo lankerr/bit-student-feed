@@ -248,7 +248,15 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         parts = urlsplit(self.path)
         if parts.path == "/health":
-            return self._send(200, {"ok": True, "role": "public-article-index", "schedule": "Sat 09:00 Asia/Shanghai; next week all, following weeks highlights"})
+            from .push_config import describe_schedule, load_config
+            return self._send(200, {"ok": True, "role": "public-article-index", "schedule": describe_schedule(load_config()[0])})
+        weekly_json = re.fullmatch(r"/weekly/(planning-pool|preview)\.json", parts.path)
+        if weekly_json:
+            try:
+                data = (SITE / "weekly" / f"{weekly_json.group(1)}.json").read_bytes()
+            except OSError:
+                return self._send(404, {"error": "not found"})
+            return self._send(200, data)
         weekly = re.fullmatch(r"/weekly/(bit-(?:weekly|preview)-(?:\d{4}-\d{2}-\d{2}|latest)\.docx)", parts.path)
         if weekly:
             try:

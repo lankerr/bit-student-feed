@@ -1,0 +1,88 @@
+name: 学术先锋号活动推送
+# 部员日常操作工作流：
+# 1. 修改 config/push.toml 保存后，自动校验语法并展示未来排期表；
+# 2. 在 Actions 页面点「Run workflow」可一键生成预览 + Word 文档，或立即发往飞书群；
+# 3. 若在 GitHub Secrets 配置了 FEISHU_WEBHOOK，也会按 config/push.toml 的双周排期自动推送。
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'config/push.toml'
+  schedule:
+    # 每天北京时间 09:05 检查一次 config/push.toml，命中双周推送日才实际推送
+    - cron: '5 1 * * *'
+  workflow_dispatch:
+    inputs:
+      action:
+        description: '操作模式（默认只生成预览与 Word，不打扰飞书群）'
+        required: true
+        type: choice
+        default: 'preview_only'
+        options:
+          - preview_only
+          - send_feishu
+      start_date:
+        description: '可选：自定义开始日期（格式 YYYY-MM-DD，留空自动按本周五计算）'
+        required: false
+        type: string
+        default: ''
+      end_date:
+        description: '可选：自定义结束日期（格式 YYYY-MM-DD，留空自动按下下个周五计算）'
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  pioneer-digest:
+    name: 校验排期并生成双周活动汇总
+    runs-on: ubuntu-latest
+    steps:
+      - name: 拉取最新代码与配置
+        uses: actions/checkout@v6
+
+      - name: 配置 Python 环境
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: 安装项目依赖
+        run: python -m pip install .
+
+      - name: 校验 config/push.toml 语法与排期（修改配置时执行）
+        if: github.event_name == 'push'
+        run: python -m bitfeed github-push --check-only
+
+      - name: 生成活动汇总或执行飞书推送
+        if: github.event_name != 'push'
+        env:
+          BITFEED_SOURCE_URL: ${{ vars.BITFEED_SOURCE_URL }}
+          FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
+          FEISHU_SIGNING_SECRET: ${{ secrets.FEISHU_SIGNING_SECRET }}
+          INPUT_ACTION: ${{ inputs.action }}
+          INPUT_START: ${{ inputs.start_date }}
+          INPUT_END: ${{ inputs.end_date }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          MODE="${INPUT_ACTION:-preview_only}"
+          if [ "$EVENT_NAME" = "schedule" ]; then
+            MODE="auto_schedule"
+          fi
+          python -m bitfeed github-push \
+            --source "$BITFEED_SOURCE_URL" \
+            --action "$MODE" \
+            --start-date "$INPUT_START" \
+            --end-date "$INPUT_END" \
+            --output dist-pioneer
+
+      - name: 上传可下载的完整版 Word 文档
+        if: github.event_name != 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: 学术先锋号活动汇总-Word版
+          path: dist-pioneer/*.docx
+          if-no-files-found: ignore
+          retention-days: 30

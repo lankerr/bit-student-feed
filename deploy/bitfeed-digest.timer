@@ -1,8 +1,8 @@
 [Unit]
-Description=Weekly planning delivery every Saturday at 09:00 Beijing time
+Description=Check GitHub push.toml schedule every 30 minutes (default biweekly Tuesday 09:00 Beijing time)
 
 [Timer]
-OnCalendar=Sat *-*-* 01:00:00 UTC
+OnCalendar=*-*-* *:00,30:00 UTC
 Persistent=true
 Unit=bitfeed-digest.service
 

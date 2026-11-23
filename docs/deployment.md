@@ -27,9 +27,9 @@ journalctl -u bitfeed-wechat.service -n 20 --no-pager
 | `bitfeed-web.service` | 0.0.0.0:18780：`/health`、`/site-data.json`、`/feed.json`、`/weekly/<周报>.docx`、`/test-receipts`、`/ops/<口令>/` |
 | `bitfeed-wechat.timer` | 每 5 分钟一次微信读书订阅（`python -m bitfeed wechat-sync`） |
 | `bitfeed-keepalive.timer` | 每 30 分钟：微信读书 `shelf/sync` 续期 + 公众号后台首页续期，然后检查提醒 |
-| `bitfeed-refresh.timer` | 每 2 小时及周六 08:40：分拣与导出（`refresh`，每次最多 3 批） |
-| `bitfeed-daily.timer` | 每天 07:50：就业网与官网采集、分拣、导出（`server-daily`） |
-| `bitfeed-digest.timer` | 每周六 09:00：生成并发送活动周报与Word（`weekly-send --no-model`），按群和周去重 |
+| `bitfeed-refresh.timer` | 每 2 小时及周二 08:40：分拣、更新双周活动池与导出（`refresh --with-preview`，每次最多 3 批） |
+| `bitfeed-daily.timer` | 每天 07:50：就业网与官网采集、分拣、更新双周活动池与导出（`server-daily --with-preview`） |
+| `bitfeed-digest.timer` | 每 30 分钟巡检 `config/push.toml`（默认每双周周二 09:00）：生成并发送本周五至下下周五活动汇总与 Word（`weekly-send --no-model --sync-github-config`），按群和排期周期去重 |
 
 旧的 `bitfeed-pipeline.service`（读本机微信导出的测试接口）已停用，`/feed.json` 改由新服务从线上数据库提供，格式不变。
 
@@ -86,19 +86,19 @@ BITFEED_DIGEST_MODE=production
 
 运维提醒想单独发到另一个群时，设置 `FEISHU_OPS_WEBHOOK`。发送结果以飞书返回的 `code=0` 为准；超时记为 `unknown`，不会自动重发。同一批文章不会重复发送，汇总窗口只在送达后前移。
 
-### 周六的未来三周预告
+### 双周周二的跨双周五活动预告（学术先锋号）
 
-每周六09:00（北京时间）执行 `weekly-send --no-model`，08:40先刷新分类，09:20更新GitHub Pages。向既有信息收集群发送卡片与Word链接，回执未知时停止而不盲目重发。
+默认每双周周二 09:00（北京时间，自 2026-11-24 起算）触发推送；部员可直接在 GitHub 网页修改 `config/push.toml` 调整星期、时间、单双周、起算日或寒暑假暂停开关，服务器每 30 分钟巡检并自动同步 GitHub 上的最新 `config/push.toml`（网络异常或语法有误时自动回退本地配置）。周二 08:40 先刷新分类，09:20 更新 GitHub Pages。
 
-- 正文分为下周前需办理、下周、下下周、下下下周、更长期预告与开放申请。主窗口从下周一到第三个周日。
-- 2026年11月14日周六的预告为2026年11月16日至12月6日。报名截止更早的放在提前办理部分；有用的更长期安排单列。
+- 统计主窗口为**本周五至下下个周五**（共 15 天，含首尾两个周五），全量收录所有类别已核验活动与报名通知；另列本周五前紧急截止事项及远期重要长期机会。
+- 2026年11月24日（周二）的首期主窗口为 2026年11月27日（周五）至 12月11日（周五），方便推文同学在周四（11月26日）编发公众号推文。
 - 按活动日期和报名截止筛选，较早发布、上期已经出现、但仍有效的机会继续保留。收录时间和发布日期不替代活动日期。
 - 官网岗位列表有效期不等于实际投递截止。未核验正文的岗位作为待核实线索，不计入已核验预告。
 - 已结束、取消、暂缓、回顾和报名已截止的排除。模型可补充排序和复核意见，不能把规则已核验的条目悄悄删掉。
 
-文件：`/var/lib/bitfeed-pipeline/site/weekly/bit-preview-latest.docx`、按日期归档的Word及`preview.json`。公开下载路由 `/weekly/bit-preview-latest.docx`。运行 `python -m bitfeed weekly-preview --no-model --output /var/lib/bitfeed-pipeline/site` 可即时重建，不会发送消息。
+文件：`/var/lib/bitfeed-pipeline/site/weekly/bit-preview-latest.docx`、按日期归档的 Word、`preview.json` 与供 GitHub Actions 读取的脱敏已核验活动池 `planning-pool.json`。公开下载路由 `/weekly/bit-preview-latest.docx`。运行 `python -m bitfeed weekly-preview --no-model --output /var/lib/bitfeed-pipeline/site` 可即时重建，不会发送消息。
 
-`feishu-digest`保留为人工明确要求时的可选发送命令，发送去重周期为周六09:00，超时或未知回执仍须人工核对，不能盲目重发。
+`feishu-digest` 与 GitHub Actions 的 `学术先锋号活动推送` 保留为手动预览或补发入口；定时发送按 `config/push.toml` 的排期周期去重，超时或未知回执仍须人工核对，不能盲目重发。
 
 登录每30分钟自动保活；微信读书会话过期时尝试刷新并重放请求，公众号后台首页续期保存新Cookie。健康会话不会启动新的扫码任务，维护页显示“登录有效，无需扫码”。平台撤销会话、刷新凭据失效或要求重新验证时，仍需本人扫码授权。所有会话写入和生成任务必须以bitfeed用户运行。
 

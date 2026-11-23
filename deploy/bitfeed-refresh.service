@@ -10,7 +10,7 @@ Group=bitfeed
 WorkingDirectory=/opt/bitfeed-site
 Environment=BITFEED_DATA=/var/lib/bitfeed-live
 EnvironmentFile=-/etc/bitfeed/runtime.env
-ExecStart=/opt/bitfeed-site/.venv/bin/python -m bitfeed refresh --output /var/lib/bitfeed-pipeline/site
+ExecStart=/opt/bitfeed-site/.venv/bin/python -m bitfeed refresh --with-preview --output /var/lib/bitfeed-pipeline/site
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectHome=true

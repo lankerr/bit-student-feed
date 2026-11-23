@@ -44,8 +44,8 @@ def public_data(store):
                        "pending":sum(not a["classification"] for a in articles)},
         "weekly_preview":json.loads(metadata.get("weekly_preview") or '{"available":false}'),
         "schedule":{"site":"每日更新", "wechat":"每 5 分钟分批轮询，各号 1～8 小时一次",
-                    "weekly":"每周六 09:00（北京时间）发送：下周全量、下下周重点、第三周提前准备",
-                    "feishu":"每周六09:00发送至既有信息收集群，附完整Word；回执去重"},
+                    "weekly":"每双周周二 09:00（北京时间）发送：本周五至下下个周五全部已核验活动",
+                    "feishu":"每双周周二 09:00 发送至飞书群，附完整 Word；支持 GitHub 网页调整与手动推送"},
         "articles":articles}
 
 

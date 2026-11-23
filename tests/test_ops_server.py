@@ -117,7 +117,9 @@ class OpsServerTest(unittest.TestCase):
     def test_preview_download_allows_only_the_named_public_documents(self):
         folder=ops_server.SITE/'weekly';folder.mkdir()
         (folder/'bit-preview-latest.docx').write_bytes(b'preview')
+        (folder/'planning-pool.json').write_text('{"entries":[]}',encoding='utf-8')
         self.assertEqual(self.get('/weekly/bit-preview-latest.docx'),(200,b'preview'))
+        self.assertEqual(self.get('/weekly/planning-pool.json'),(200,b'{"entries":[]}'))
         self.assertEqual(self.get('/weekly/../../weread/session.json')[0],404)
 
 
